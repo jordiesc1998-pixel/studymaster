@@ -3373,6 +3373,75 @@ export default function StudyMaster() {
     }
   }
 
+  // Copiar código JSON de un juego al portapapeles
+  const copyGameCode = async (game: any) => {
+    try {
+      const gameData = typeof game.gameData === 'string' ? JSON.parse(game.gameData) : game.gameData
+      const code = JSON.stringify(gameData, null, 2)
+      await navigator.clipboard.writeText(code)
+      alert('✅ Código copiado al portapapeles')
+    } catch (error) {
+      console.error('Error copying game code:', error)
+      alert('Error al copiar el código')
+    }
+  }
+
+  // Generar código JSON desde las preguntas del admin
+  const generateGameCodeFromQuestions = () => {
+    if (adminQuestions.length === 0) {
+      alert('No hay preguntas seleccionadas para generar el código')
+      return
+    }
+
+    const gameData = {
+      questions: adminQuestions.map(q => ({
+        question: q.question,
+        optionA: q.optionA,
+        optionB: q.optionB,
+        optionC: q.optionC,
+        optionD: q.optionD,
+        correctAnswer: q.correctAnswer,
+        explanation: q.explanation,
+        questionImage: q.questionImage,
+        optionAImage: q.optionAImage,
+        optionBImage: q.optionBImage,
+        optionCImage: q.optionCImage,
+        optionDImage: q.optionDImage
+      })),
+      metadata: {
+        category: adminCat,
+        university: adminUni,
+        area: adminArea,
+        topic: adminTopic,
+        totalQuestions: adminQuestions.length,
+        generatedAt: new Date().toISOString()
+      }
+    }
+
+    const code = JSON.stringify(gameData, null, 2)
+    setGameCode(code)
+    setGameForm(prev => ({
+      ...prev,
+      name: `Quiz ${adminTopic || adminArea || 'General'} - ${adminQuestions.length} preguntas`
+    }))
+    alert(`✅ Código generado con ${adminQuestions.length} preguntas`)
+  }
+
+  // Copiar el código generado al portapapeles
+  const copyGeneratedCode = async () => {
+    if (!gameCode) {
+      alert('No hay código para copiar')
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(gameCode)
+      alert('✅ Código copiado al portapapeles')
+    } catch (error) {
+      console.error('Error copying:', error)
+      alert('Error al copiar')
+    }
+  }
+
   // Cargar juegos cuando se abre la pestaña de juegos
   useEffect(() => {
     if (showAdmin && adminTab === 'games') {
@@ -5604,7 +5673,7 @@ export default function StudyMaster() {
 
                 <div>
                   <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>Preguntas Guardadas ({adminQuestions.length})</h4>
-                  <div className="max-h-96 overflow-y-auto space-y-2">
+                  <div className="max-h-80 overflow-y-auto space-y-2">
                     {adminQuestions.map(q => (
                       <div key={q.id} className="p-3 border rounded-xl" style={{ background: '#F8FAFC' }}>
                         <div className="flex justify-between items-start">
@@ -5616,6 +5685,31 @@ export default function StudyMaster() {
                     ))}
                     {adminQuestions.length === 0 && <p className="text-center py-8" style={{ color: COLORS.textMuted }}>No hay preguntas</p>}
                   </div>
+                  
+                  {/* Botón para generar código del juego */}
+                  {adminQuestions.length > 0 && (
+                    <div className="mt-4 p-3 rounded-xl" style={{ background: '#F0F4FF' }}>
+                      <p className="text-sm font-medium mb-2" style={{ color: COLORS.primary }}>
+                        🎮 Generar Juego desde Preguntas
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={generateGameCodeFromQuestions}
+                          className="flex-1 py-2 text-sm font-medium rounded-xl"
+                          style={{ background: COLORS.primary, color: 'white' }}
+                        >
+                          📋 Generar Código JSON
+                        </button>
+                        <button
+                          onClick={() => setAdminTab('games')}
+                          className="py-2 px-4 text-sm font-medium rounded-xl"
+                          style={{ background: '#DCFCE7', color: '#166534' }}
+                        >
+                          Ir a Juegos →
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -6046,7 +6140,27 @@ ANSWER: C`}</pre>
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium mb-1">Código del Juego (JSON) *</label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-sm font-medium">Código del Juego (JSON) *</label>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={copyGeneratedCode}
+                            disabled={!gameCode}
+                            className="text-xs px-2 py-1 rounded-lg"
+                            style={{ background: gameCode ? '#DCFCE7' : '#F1F5F9', color: gameCode ? '#166534' : '#94A3B8' }}
+                          >
+                            📋 Copiar
+                          </button>
+                          <button
+                            onClick={() => setGameCode('')}
+                            disabled={!gameCode}
+                            className="text-xs px-2 py-1 rounded-lg"
+                            style={{ background: gameCode ? '#FEE2E2' : '#F1F5F9', color: gameCode ? '#DC2626' : '#94A3B8' }}
+                          >
+                            🗑️ Limpiar
+                          </button>
+                        </div>
+                      </div>
                       <textarea
                         value={gameCode}
                         onChange={(e) => setGameCode(e.target.value)}
@@ -6121,12 +6235,22 @@ ANSWER: C`}</pre>
                               </span>
                             </div>
                           </div>
-                          <button
-                            onClick={() => deleteGame(game.id)}
-                            className="text-red-500 ml-2 p-1 hover:bg-red-50 rounded"
-                          >
-                            🗑️
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => copyGameCode(game)}
+                              className="text-blue-500 p-1 hover:bg-blue-50 rounded"
+                              title="Copiar código JSON"
+                            >
+                              📋
+                            </button>
+                            <button
+                              onClick={() => deleteGame(game.id)}
+                              className="text-red-500 p-1 hover:bg-red-50 rounded"
+                              title="Eliminar juego"
+                            >
+                              🗑️
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ))}

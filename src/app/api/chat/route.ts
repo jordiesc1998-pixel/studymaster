@@ -1,83 +1,199 @@
 import ZAI from 'z-ai-web-dev-sdk'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Respuestas de fallback para MR. Q cuando el SDK no está disponible
+// Respuestas de fallback mejoradas para MR. Q
 const fallbackResponses: Record<string, string> = {
-  saludo: `¡Hola! 👋 Soy **MR. Q**, tu tutor personal.
+  saludo: `¡Hola! 👋 Soy **MR. Q**, tu tutor personal de StudyMaster.
 
-Estoy aquí para ayudarte a entender cualquier tema de forma sencilla. ¿Qué te gustaría practicar hoy?
+Estoy aquí para ayudarte a preparar tus exámenes de ingreso a la universidad. Puedo ayudarte con:
 
-• Matemáticas 📐
-• Física ⚡
-• Química 🧪
-• Razonamiento 🧠`,
+• 📐 **Matemáticas**: álgebra, geometría, trigonometría
+• ⚡ **Física**: movimiento, fuerzas, energía
+• 🧪 **Química**: átomos, tabla periódica, reacciones
+• 🧠 **Razonamiento**: numérico, verbal, abstracto
+• 📚 **Biología**: célula, genética, anatomía
 
-  explicacion: `¡Claro! Me encanta explicar cosas 📚
+¿Qué tema te gustaría practicar hoy?`,
 
-**Paso 1:** Identificamos el concepto principal
-Primero debemos entender qué es lo que estamos buscando.
+  mate: `¡Excelente! Me encantan las matemáticas 📐
 
-**Paso 2:** Buscamos un ejemplo de la vida real
-Es más fácil entender cuando podemos relacionarlo con algo conocido.
+Aquí tienes algunos temas que puedo explicarte:
 
-**Paso 3:** Practicamos con ejercicios simples
-La práctica hace al maestro 🎯
+• **Álgebra**: Ecuaciones, factorización, productos notables
+• **Aritmética**: Fracciones, porcentajes, proporciones
+• **Geometría**: Áreas, perímetros, volúmenes
+• **Trigonometría**: Funciones trigonométricas, identidades
 
-¿Te gustaría que te explique algún tema en específico?`,
+¿Sobre cuál tema quieres que te explique? Solo dime "explica [tema]" y te ayudo paso a paso.`,
 
-  ejercicio: `¡Excelente idea! Vamos a practicar 💪
+  fisica: `¡La física es fascinante! ⚡
 
-**Ejercicio:**
+Puedo ayudarte con estos temas:
 
-Si tengo 3 manzanas y me regalan 2 más, ¿cuántas manzanas tengo en total?
+• **Cinemática**: MRU, MRUV, movimiento parabólico
+• **Dinámica**: Leyes de Newton, fuerzas
+• **Energía**: Trabajo, energía cinética y potencial
+• **Electricidad**: Circuitos, ley de Ohm
 
-A) 4 manzanas
-B) 5 manzanas  ✓
-C) 6 manzanas
-D) 3 manzanas
+¿Qué tema de física te interesa? Dime "explica [tema]" y te lo explico de forma sencilla.`,
 
-**Explicación:** Sumamos 3 + 2 = 5 manzanas.
+  quimica: `¡La química es mágica! 🧪
 
-¿Quieres otro ejercicio o prefieres que te explique algo?`,
+Temas que puedo explicarte:
 
-  animo: `¡No te desanimes! 💪
+• **Átomo**: Estructura, configuración electrónica
+• **Tabla Periódica**: Propiedades, grupos, períodos
+• **Enlaces**: Iónicos, covalentes, metálicos
+• **Reacciones**: Balanceo, estequiometría
 
-Recuerda que cada error es una oportunidad de aprendizaje. Los grandes científicos e inventores también se equivocaron muchas veces antes de lograr sus objetivos.
+¿Qué necesitas repasar? Escribe "explica [tema]" y te ayudo.`,
 
-**Consejo del día:**
-"El éxito no es la clave de la felicidad. La felicidad es la clave del éxito." - Albert Schweitzer
+  razonamiento: `¡El razonamiento es clave para los exámenes! 🧠
 
-¿En qué tema te gustaría practicar más?`,
+Puedo ayudarte con:
 
-  default: `¡Interesante pregunta! 🤔
+• **Numérico**: Series, proporciones, porcentajes, edades
+• **Verbal**: Sinónimos, antónimos, analogías, comprensión
+• **Abstracto**: Figuras, dominós, dados, matrices
 
-Déjame pensar... Aunque estoy en modo de demostración, puedo ayudarte con:
+Estos temas son muy importantes para UCE, UNACH, UTMACH y YACHAY.
 
-• **Explicaciones** de conceptos básicos
-• **Ejercicios** simples para practicar
-• **Tips** de estudio y motivación
-• **Dudas** sobre los temas del quiz
+¿Qué tipo de razonamiento quieres practicar?`,
 
-¿Qué te gustaría hacer? Escribe "ejercicio", "explicación" o cuéntame en qué necesitas ayuda.`
+  explicacion: `¡Claro! Me encanta explicar 📚
+
+**Para explicarte mejor, dime específicamente qué tema:**
+
+• "Explica fracciones" - Te enseño a sumar, restar, multiplicar
+• "Explica leyes de Newton" - Las 3 leyes con ejemplos
+• "Explica analogías" - Cómo resolverlas paso a paso
+• "Explica porcentajes" - Cálculos y problemas prácticos
+
+Mientras más específico seas, mejor te puedo ayudar.`,
+
+  ejercicio: `¡Vamos a practicar! 💪
+
+Dime el tema y te genero un ejercicio:
+
+• "Ejercicio de fracciones"
+• "Ejercicio de porcentajes" 
+• "Ejercicio de analogías"
+• "Ejercicio de movimiento rectilíneo"
+
+También puedo darte tips para resolver más rápido en el examen.`,
+
+  ayuda: `¡Estoy aquí para ayudarte! 🤝
+
+Puedo:
+
+1. **Explicar** cualquier tema paso a paso
+2. **Crear ejercicios** para practicar
+3. **Darte tips** para el examen
+4. **Resolver dudas** específicas
+
+Solo escribe tu pregunta o el tema que quieres estudiar.
+
+Ejemplo: "Explícame cómo se resuelven las analogías"`,
+
+  animo: `¡No te rindas! 💪 Cada error es un paso más hacia el éxito.
+
+**Consejos para estudiar mejor:**
+
+1. 📅 **Organiza tu tiempo**: Estudia en bloques de 25-45 min
+2. 📝 **Practica diario**: 10-15 ejercicios al día
+3. ✅ **Repasa tus errores**: Aprende de lo que fallaste
+4. 😴 **Descansa bien**: El cerebro aprende mientras duermes
+
+Recuerda: Los mejores estudiantes no son los más inteligentes, sino los más constantes.
+
+¿En qué tema necesitas ayuda?`,
+
+  examen: `¡Prepararse para el examen es clave! 📋
+
+**Tips para el día del examen:**
+
+1. ⏰ **Llega temprano** y relajado
+2. 📖 **Lee toda la pregunta** antes de responder
+3. ✏️ **No te estanques** en una pregunta difícil
+4. 🔍 **Revisa tus respuestas** si tienes tiempo
+5. 💧 **Mantente hidratado**
+
+**Estrategias:**
+• Primero responde lo que sabes seguro
+• Elimina opciones obvias
+• Usa el proceso de eliminación
+
+¿Quieres que practiquemos algún tema específico?`,
+
+  default: `¡Interesante! 🤔
+
+No estoy seguro de entender tu pregunta, pero puedo ayudarte con:
+
+• **Matemáticas**: álgebra, geometría, trigonometría
+• **Física**: movimiento, fuerzas, energía
+• **Química**: átomos, reacciones
+• **Razonamiento**: numérico, verbal, abstracto
+• **Biología**: célula, genética
+
+Escribe el tema que quieres estudiar o tu pregunta específica.
+
+Ejemplos:
+• "Explícame las fracciones"
+• "Dame un ejercicio de analogías"
+• "¿Cómo se resuelven los problemas de edades?"`
 }
 
 // Función para determinar qué respuesta de fallback usar
 function getFallbackResponse(userMessage: string): string {
   const message = userMessage.toLowerCase()
 
-  if (message.includes('hola') || message.includes('buenas') || message.includes('hey') || message.includes('saludos')) {
+  // Saludos
+  if (message.includes('hola') || message.includes('buenas') || message.includes('hey') || message.includes('saludos') || message.includes('buenos')) {
     return fallbackResponses.saludo
   }
 
-  if (message.includes('ejercicio') || message.includes('practicar') || message.includes('problema')) {
+  // Matemáticas
+  if (message.includes('matemática') || message.includes('algebra') || message.includes('geometría') || message.includes('trigonometría') || message.includes('aritmetica') || message.includes('fracci') || message.includes('ecuaci')) {
+    return fallbackResponses.mate
+  }
+
+  // Física
+  if (message.includes('física') || message.includes('fisica') || message.includes('movimiento') || message.includes('fuerza') || message.includes('newton') || message.includes('energía') || message.includes('mru') || message.includes('circuit')) {
+    return fallbackResponses.fisica
+  }
+
+  // Química
+  if (message.includes('química') || message.includes('quimica') || message.includes('atomo') || message.includes('átomo') || message.includes('tabla periódica') || message.includes('enlace') || message.includes('reacci')) {
+    return fallbackResponses.quimica
+  }
+
+  // Razonamiento
+  if (message.includes('razonamiento') || message.includes('numérico') || message.includes('verbal') || message.includes('abstracto') || message.includes('analogía') || message.includes('sinónimo') || message.includes('antónimo') || message.includes('serie')) {
+    return fallbackResponses.razonamiento
+  }
+
+  // Ejercicios
+  if (message.includes('ejercicio') || message.includes('practicar') || message.includes('problema') || message.includes('resolver')) {
     return fallbackResponses.ejercicio
   }
 
-  if (message.includes('explica') || message.includes('qué es') || message.includes('cómo') || message.includes('por qué')) {
+  // Explicaciones
+  if (message.includes('explica') || message.includes('qué es') || message.includes('como funciona') || message.includes('cómo se') || message.includes('por qué') || message.includes('enseña')) {
     return fallbackResponses.explicacion
   }
 
-  if (message.includes('triste') || message.includes('mal') || message.includes('difícil') || message.includes('no puedo') || message.includes('ayuda')) {
+  // Ayuda y motivación
+  if (message.includes('ayuda') || message.includes('ayudar') || message.includes('qué puedes') || message.includes('que puedes')) {
+    return fallbackResponses.ayuda
+  }
+
+  // Examen
+  if (message.includes('examen') || message.includes('prueba') || message.includes('test') || message.includes('simulacro')) {
+    return fallbackResponses.examen
+  }
+
+  // Ánimo
+  if (message.includes('triste') || message.includes('mal') || message.includes('difícil') || message.includes('no puedo') || message.includes('rindo') || message.includes('frustrado')) {
     return fallbackResponses.animo
   }
 
@@ -95,22 +211,24 @@ export async function POST(request: NextRequest) {
 
       const systemMessage = {
         role: 'system' as const,
-        content: `Eres MR. Q, un tutor amigable y paciente. Tu trabajo es:
+        content: `Eres MR. Q, un tutor amigable y paciente para exámenes de ingreso a universidades de Ecuador. Tu trabajo es:
 
 1. Explicar conceptos de forma MUY SENCILLA, como si le hablaras a un niño de 10 años
-2. Usar ejemplos cotidianos y familiares
-3. Dar ejercicios paso a paso
-4. Ser motivador y paciente
+2. Usar ejemplos cotidianos y familiares de Ecuador
+3. Dar ejercicios paso a paso con números concretos
+4. Ser motivador y paciente siempre
 5. Usar emojis ocasionalmente para hacer la conversación más amigable
 6. Cuando expliques, usar formato claro con pasos numerados
+7. Conocer sobre las universidades ecuatorianas: UCE, ESPOCH, EPN, UTN, ESPE, UNACH, UTMACH, YACHAY, UTPL, UNL, UTC, U Cuenca
 
-${topicContext || 'El usuario está practicando'}
+${topicContext || 'El usuario está practicando para su examen de ingreso'}
 
 Reglas importantes:
-- Si el usuario pide un ejercicio, genera UNO simple con la respuesta al final
-- Si pide explicación, usa máximo 3 pasos
+- Si el usuario pide un ejercicio, genera UNO simple con 4 opciones (A, B, C, D) y marca la correcta
+- Si pide explicación, usa máximo 3 pasos claros
 - Siempre pregunta si entendió o si quiere practicar más
-- Sé entusiasta pero profesional`
+- Sé entusiasta pero profesional
+- Si pregunta sobre porcentajes, proporciones, fracciones, etc., da ejemplos numéricos concretos`
       }
 
       const completion = await zai.chat.completions.create({
