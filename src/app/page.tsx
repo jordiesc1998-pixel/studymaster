@@ -1040,24 +1040,29 @@ const unachAreas: Record<string, { id: string; name: string; icon: string; topic
       { id: 'analogias_unach', name: 'Analogías' }
     ]
   },
-  logico: {
-    id: 'logico',
-    name: 'Razonamiento Lógico',
+  abstracto: {
+    id: 'abstracto',
+    name: 'Razonamiento Abstracto',
     icon: '🧩',
     topics: [
-      { id: 'series_logicas_unach', name: 'Series' }
+      { id: 'dados_unach', name: 'Dados' },
+      { id: 'dominos_unach', name: 'Dominós' },
+      { id: 'analogias_abstracto_unach', name: 'Analogías' },
+      { id: 'secuencias_graficas_unach', name: 'Secuencias Gráficas' },
+      { id: 'giros_unach', name: 'Giros' },
+      { id: 'vistas_proyecciones_unach', name: 'Vistas y Proyecciones' }
     ]
   }
 }
 
-// Configuración UNACH: 80 preguntas en 90 minutos
+// Configuración UNACH: 80 preguntas en 90 minutos (20 verbal, 30 numérico, 30 abstracto)
 const unachConfig = {
   totalQuestions: 80,
   timeMinutes: 90,
   distribution: {
     numerico: 30,
-    verbal: 30,
-    logico: 20
+    verbal: 20,
+    abstracto: 30
   }
 }
 
@@ -1895,6 +1900,46 @@ export default function StudyMaster() {
     setLoadingQuestions(false)
   }
 
+  // Load questions for simulacro from multiple areas
+  const fetchSimulacroQuestions = async (
+    university: string,
+    distribution: Record<string, number>,
+    category: string = 'conocimiento'
+  ) => {
+    setLoadingQuestions(true)
+    try {
+      const allQuestions: Question[] = []
+      
+      // Fetch questions from each area according to distribution
+      for (const [area, count] of Object.entries(distribution)) {
+        const params = new URLSearchParams({
+          category,
+          university,
+          type: area,
+          topic: area,
+          limit: count.toString()
+        })
+        
+        const res = await fetch(`/api/questions?${params}`)
+        const data = await res.json()
+        const areaQuestions = (data.questions || []).slice(0, count)
+        allQuestions.push(...areaQuestions)
+      }
+      
+      // Shuffle questions
+      const shuffled = allQuestions.sort(() => Math.random() - 0.5)
+      setQuestions(shuffled)
+      
+      return shuffled.length
+    } catch (error) {
+      console.error('Error loading simulacro questions:', error)
+      setQuestions([])
+      return 0
+    } finally {
+      setLoadingQuestions(false)
+    }
+  }
+
   // Send report to Google Sheets
   const sendReport = async (actividad: string, tipoActividad: string, nota: string, porcentaje: number) => {
     if (!student) return
@@ -2317,6 +2362,7 @@ export default function StudyMaster() {
 
   const selectCarrera = (carreraId: string) => {
     setSelectedCarrera(carreraId)
+    setQuizMode('simulacro')
     setCurrentQuestionIndex(0)
     setScore(0)
     setSelectedAnswer(null)
@@ -2325,12 +2371,14 @@ export default function StudyMaster() {
     setQuestions([])
     setCurrentScreen('quiz')
     
-    // Iniciar temporizador para simulacro
-    const config = universityConfig[selectedUniversity]
-    if (config) {
-      startTimer(config.simulacroTime)
+    // Iniciar temporizador para simulacro ESPOCH (150 min = 2h 30min)
+    startTimer(150)
+    
+    // Cargar preguntas según distribución de la carrera
+    const carrera = espochCarreras.find(c => c.id === carreraId)
+    if (carrera) {
+      fetchSimulacroQuestions('espoch', carrera.distribution, 'conocimiento')
     }
-    // TODO: Implement simulacro loading with distribution
   }
 
   // Para ESPOL - iniciar simulacro directamente
@@ -2346,7 +2394,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador ESPOL (120 minutos)
     startTimer(espolConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución
+    // Cargar preguntas según distribución (80 preguntas)
+    fetchSimulacroQuestions('espol', espolConfig.distribution, 'conocimiento_razonamiento')
   }
 
   // Para UCE - iniciar simulacro directamente
@@ -2362,7 +2411,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador UCE (120 minutos)
     startTimer(uceConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (50 numérico, 50 verbal, 50 abstracto)
+    // Cargar preguntas según distribución (50 numérico, 50 verbal, 50 abstracto)
+    fetchSimulacroQuestions('uce', uceConfig.distribution, 'razonamiento')
   }
 
   // Para EPN - iniciar simulacro directamente
@@ -2378,7 +2428,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador EPN (90 minutos)
     startTimer(epnConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (10 por dominio)
+    // Cargar preguntas según distribución (10 por dominio)
+    fetchSimulacroQuestions('epn', epnConfig.distribution, 'conocimiento')
   }
 
   // Para UTN - iniciar simulacro directamente
@@ -2394,7 +2445,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador UTN (120 minutos)
     startTimer(utnConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (15 por materia)
+    // Cargar preguntas según distribución (15 por materia)
+    fetchSimulacroQuestions('utn', utnConfig.distribution, 'conocimiento')
   }
 
   // Para ESPE - iniciar simulacro según grupo seleccionado
@@ -2411,7 +2463,11 @@ export default function StudyMaster() {
     
     // Iniciar temporizador ESPE (90 minutos)
     startTimer(espeConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución del grupo
+    // Cargar preguntas según distribución del grupo
+    const grupo = espeGrupos.find(g => g.id === grupoId)
+    if (grupo) {
+      fetchSimulacroQuestions('espe', grupo.distribution, 'conocimiento')
+    }
   }
 
   // Para UTC - iniciar simulacro directamente
@@ -2427,7 +2483,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador UTC (90 minutos)
     startTimer(utcConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (28 verbal, 18 numérico, 20 abstracto, etc.)
+    // Cargar preguntas según distribución (28 verbal, 18 numérico, 20 abstracto, etc.)
+    fetchSimulacroQuestions('utc', utcConfig.distribution, 'conocimiento_razonamiento')
   }
 
   // Para YACHAY - iniciar simulacro directamente
@@ -2443,7 +2500,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador YACHAY (90 minutos)
     startTimer(yachayConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (30 numérico, 20 verbal, 30 abstracto)
+    // Cargar preguntas según distribución (30 numérico, 20 verbal, 30 abstracto)
+    fetchSimulacroQuestions('yachay', yachayConfig.distribution, 'razonamiento')
   }
 
   // Para UNACH - iniciar simulacro directamente
@@ -2459,7 +2517,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador UNACH (90 minutos)
     startTimer(unachConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (30 numérico, 30 verbal, 20 lógico)
+    // Cargar preguntas según distribución (30 numérico, 20 verbal, 30 abstracto)
+    fetchSimulacroQuestions('unach', unachConfig.distribution, 'razonamiento')
   }
 
   // Para UTMACH - iniciar simulacro directamente
@@ -2475,7 +2534,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador UTMACH (90 minutos)
     startTimer(utmachConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (15 verbal, 20 numérico, 15 abstracto)
+    // Cargar preguntas según distribución (15 verbal, 20 numérico, 15 abstracto)
+    fetchSimulacroQuestions('utmach', utmachConfig.distribution, 'razonamiento')
   }
 
   // Para UNL - iniciar simulacro con selección de área de conocimiento
@@ -2492,7 +2552,20 @@ export default function StudyMaster() {
     
     // Iniciar temporizador UNL (120 minutos)
     startTimer(unlConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (40 razonamiento + 60 conocimiento según área)
+    // Cargar preguntas según distribución (40 razonamiento + 60 conocimiento según área)
+    const razDistribution = { numerico: 14, verbal: 13, logico: 13 }
+    if (conocimientoArea) {
+      const conocimientoDistribution: Record<string, Record<string, number>> = {
+        agropecuaria: { quimica_agro: 20, fisica_agro: 20, biologia_agro: 20 },
+        pedagogias: { pedagogia: 20, filosofia_ped: 20, etica_ped: 20 },
+        juridica: { sociedad_politica: 20, filosofia_jur: 20, etica_jur: 20 },
+        salud: { quimica_salud: 20, fisica_salud: 20, biologia_salud: 20 },
+        ingenierias: { matematica_ing: 20, fisica_ing: 20, etica_ing: 20 }
+      }
+      fetchSimulacroQuestions('unl', { ...razDistribution, ...conocimientoDistribution[conocimientoArea] }, 'conocimiento_razonamiento')
+    } else {
+      fetchSimulacroQuestions('unl', razDistribution, 'razonamiento')
+    }
   }
 
   // Para UTPL - iniciar simulacro (base o con salud)
@@ -2509,7 +2582,12 @@ export default function StudyMaster() {
     
     // Iniciar temporizador UTPL (60 minutos)
     startTimer(utplConfig.timeMinutes)
-    // TODO: Cargar preguntas (15 por área: base=45, con salud=90)
+    // Cargar preguntas (15 por área: base=45, con salud=90)
+    if (includeSalud) {
+      fetchSimulacroQuestions('utpl', { matematica: 15, verbal: 15, abstracto: 15, quimica: 15, biologia: 15, fisica: 15 }, 'conocimiento_razonamiento')
+    } else {
+      fetchSimulacroQuestions('utpl', { matematica: 15, verbal: 15, abstracto: 15 }, 'conocimiento_razonamiento')
+    }
   }
 
   // Para U Cuenca - iniciar simulacro
@@ -2525,7 +2603,8 @@ export default function StudyMaster() {
     
     // Iniciar temporizador U Cuenca (120 minutos)
     startTimer(ucuencaConfig.timeMinutes)
-    // TODO: Cargar preguntas según distribución (9 nat, 9 soc, 14 mat, 14 abs, 14 len)
+    // Cargar preguntas según distribución (9 nat, 9 soc, 14 mat, 14 abs, 14 len)
+    fetchSimulacroQuestions('ucuenca', ucuencaConfig.distribution, 'conocimiento_razonamiento')
   }
 
   // Para práctica por área (10 preguntas al azar)
@@ -4254,7 +4333,7 @@ export default function StudyMaster() {
                 <span className="text-3xl">🎯</span>
               </div>
               <h3 className="text-xl font-bold mb-2" style={{ color: COLORS.text }}>Simulacro Completo</h3>
-              <p style={{ color: COLORS.textMuted }} className="text-sm">30 numérico • 30 verbal • 20 lógico</p>
+              <p style={{ color: COLORS.textMuted }} className="text-sm">30 numérico • 20 verbal • 30 abstracto</p>
               <p style={{ color: COLORS.secondary }} className="text-xs mt-1 font-medium">Tiempo: 1h 30min</p>
             </div>
           </div>
