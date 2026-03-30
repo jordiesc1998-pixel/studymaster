@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 
+// StudyMaster - Quiz App for Ecuador University Entrance Exams
+// Updated: March 2026 - Added Preguntados Game
+
 // Types
 interface Question {
   id: string
