@@ -1,0 +1,175 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Usuario administrador
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  role      String   @default("admin")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Usuario normal (estudiante)
+model Student {
+  id        String   @id @default(cuid())
+  ci        String   @unique  // Cédula de identidad
+  nombre    String
+  apodo     String?
+  sede      String
+  createdAt DateTime @default(now())
+  
+  // Relación con historial
+  history   StudentHistory[]
+}
+
+// Historial de actividades del estudiante
+model StudentHistory {
+  id             String   @id @default(cuid())
+  studentId      String
+  student        Student  @relation(fields: [studentId], references: [id])
+  
+  // Detalles de la actividad
+  actividad      String   // "Quiz Porcentajes", "Simulacro UTA", etc.
+  tipoActividad  String   // quiz, simulacro, juego
+  category       String?
+  university     String?
+  tipo           String?  // numerico, logico, verbal
+  topic          String?
+  
+  // Resultados
+  totalQuestions Int
+  correctAnswers Int
+  porcentaje     Float
+  weakTopics     String?  // JSON con temas débiles
+  
+  createdAt      DateTime @default(now())
+}
+
+// Preguntas del quiz
+model Question {
+  id             String   @id @default(cuid())
+  question       String
+  optionA        String
+  optionB        String
+  optionC        String
+  optionD        String
+  correctAnswer  Int      // 0=A, 1=B, 2=C, 3=D
+  explanation    String?
+  
+  // Clasificación
+  category       String   // razonamiento, conocimiento
+  university     String   // uta, unach, general
+  type           String   // numerico, logico, verbal, simulacro
+  topic          String   // porcentajes, aritmetica, etc.
+  
+  // Imágenes
+  questionImage  String?  // URL de la imagen de la pregunta
+  optionAImage   String?  // URL de la imagen de la opción A
+  optionBImage   String?  // URL de la imagen de la opción B
+  optionCImage   String?  // URL de la imagen de la opción C
+  optionDImage   String?  // URL de la imagen de la opción D
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Sesiones de admin
+model AdminSession {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ============================================
+// RECURSOS EDUCATIVOS
+// ============================================
+
+// Tutoriales (videos, documentos, enlaces)
+model Tutorial {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  
+  // Contenido
+  youtubeUrl  String?  // URL de YouTube
+  imageUrl    String?  // Imagen de preview
+  documentUrl String?  // PDF o documento
+  content     String?  // Contenido de texto/markdown
+  
+  // Clasificación
+  category    String?  // razonamiento, conocimiento
+  university  String?  // uta, unach, general (null = general)
+  area        String?  // numerico, verbal, logico
+  topic       String?  // porcentajes, fracciones, etc.
+  
+  // Orden y estado
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Juegos educativos personalizados
+model Game {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  
+  // Configuración del juego
+  gameType    String   // quiz, memory, drag_drop, crossword
+  difficulty  String   @default("medium") // easy, medium, hard
+  timeLimit   Int?     // Tiempo en segundos (null = sin límite)
+  
+  // Datos del juego (JSON)
+  gameData    String   // JSON con la configuración específica del juego
+  
+  // Clasificación
+  category    String?  // razonamiento, conocimiento
+  university  String?  // uta, unach, general
+  area        String?  // numerico, verbal, logico
+  topic       String?  // porcentajes, fracciones, etc.
+  
+  // Estado
+  isActive    Boolean  @default(true)
+  playCount   Int      @default(0)
+  
+  // Relación con preguntas del juego
+  questions   GameQuestion[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Preguntas específicas para juegos (opcional, para juegos tipo quiz)
+model GameQuestion {
+  id           String   @id @default(cuid())
+  gameId       String
+  game         Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  
+  question     String
+  optionA      String
+  optionB      String
+  optionC      String
+  optionD      String
+  correctAnswer Int    // 0=A, 1=B, 2=C, 3=D
+  explanation  String?
+  questionImage String?
+  
+  order        Int      @default(0)
+  
+  createdAt    DateTime @default(now())
+}
