@@ -1689,11 +1689,11 @@ export default function StudyMaster() {
   const [timerActive, setTimerActive] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Auth state (admin)
+  // Auth state (admin) - desactivado temporalmente para pruebas
   const [showLogin, setShowLogin] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [adminUser, setAdminUser] = useState<AdminUser | null>(null)
-  const [token, setToken] = useState<string>('')
+  const [isLoggedIn, setIsLoggedIn] = useState(true) // True por defecto para pruebas
+  const [adminUser, setAdminUser] = useState<AdminUser | null>({ id: '1', username: 'admin', role: 'admin' })
+  const [token, setToken] = useState<string>('test-token')
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [loginError, setLoginError] = useState('')
 
@@ -3701,7 +3701,7 @@ export default function StudyMaster() {
                   <span title="Cambiar">🔄{studentProgress.powerUps.changeQuestion}</span>
                   <span title="Pista">💡{studentProgress.powerUps.hint}</span>
                 </div>
-                <button onClick={() => setShowLogin(true)} className="p-2 rounded-full hover:bg-gray-100" title="Admin">
+                <button onClick={() => setShowAdmin(true)} className="p-2 rounded-full hover:bg-gray-100" title="Admin">
                   <svg className="w-5 h-5" style={{ color: isLoggedIn ? COLORS.success : COLORS.textMuted }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -5048,7 +5048,7 @@ export default function StudyMaster() {
               <span className="text-6xl mb-4">✨</span>
               <h2 className="text-2xl font-bold mb-2" style={{ color: COLORS.text }}>¡No hay preguntas!</h2>
               <p style={{ color: COLORS.textMuted }} className="mb-6">Agrega preguntas desde el panel de administración</p>
-              <button onClick={() => setShowLogin(true)} className="btn-primary px-6 py-3">Agregar Preguntas</button>
+              <button onClick={() => setShowAdmin(true)} className="btn-primary px-6 py-3">Agregar Preguntas</button>
             </div>
           ) : (
             <div className="flex-1 flex flex-col">
