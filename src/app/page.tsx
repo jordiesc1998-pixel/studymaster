@@ -52,6 +52,60 @@ interface Student {
   sede: string
 }
 
+// Power-ups disponibles
+interface PowerUps {
+  fiftyFifty: number    // 50/50 - Elimina 2 opciones
+  extraTime: number     // +Tiempo - Añade 10 segundos
+  changeQuestion: number // Cambiar - Cambia la pregunta
+  hint: number          // Pista - Muestra una pista
+}
+
+// Estadísticas del estudiante
+interface StudentStats {
+  totalQuestions: number
+  correctAnswers: number
+  wrongAnswers: number
+  bestStreak: number
+  currentStreak: number
+  bestScore: number
+  gamesPlayed: number
+  simulacrosPlayed: number
+  preguntadosWins: number
+}
+
+// Insignia con niveles
+interface Badge {
+  id: string
+  name: string
+  icon: string
+  color: string
+  type: 'razonamiento' | 'conocimiento' | 'universidad'
+  level: number        // 0-6 (0 = sin insignia, 6 = completa)
+  progress: number     // Preguntas correctas actuales
+  thresholds: number[] // [5, 15, 30, 50, 75, 100]
+}
+
+// Logros desbloqueados
+interface Achievement {
+  id: string
+  name: string
+  description: string
+  icon: string
+  unlockedAt: Date | null
+  unlocked: boolean
+}
+
+// Progreso completo del estudiante
+interface StudentProgress {
+  stats: StudentStats
+  powerUps: PowerUps
+  badges: Badge[]
+  achievements: Achievement[]
+  razonamientoCorrect: number  // Total correctas en razonamiento
+  conocimientoCorrect: number  // Total correctas en conocimiento
+  universityProgress: Record<string, number> // correctas por universidad
+}
+
 // Color Palette
 const COLORS = {
   primary: '#172BDE',
@@ -63,6 +117,62 @@ const COLORS = {
   surface: '#FFFFFF',
   text: '#1E293B',
   textMuted: '#64748B'
+}
+
+// ============================================
+// SISTEMA DE INSIGNIAS Y LOGROS
+// ============================================
+
+// Niveles de insignias: 5→15→30→50→75→100
+const BADGE_THRESHOLDS = [5, 15, 30, 50, 75, 100]
+const BADGE_LEVELS = ['⭐', '⭐⭐', '⭐⭐⭐', '⭐⭐⭐⭐', '⭐⭐⭐⭐⭐', '🏆']
+
+// Insignias principales
+const MAIN_BADGES: Badge[] = [
+  { id: 'razonamiento', name: 'Razonamiento', icon: '🧠', color: '#8B5CF6', type: 'razonamiento', level: 0, progress: 0, thresholds: BADGE_THRESHOLDS },
+  { id: 'conocimiento', name: 'Conocimiento', icon: '📚', color: '#3B82F6', type: 'conocimiento', level: 0, progress: 0, thresholds: BADGE_THRESHOLDS }
+]
+
+// Logros disponibles
+const AVAILABLE_ACHIEVEMENTS: Achievement[] = [
+  { id: 'first_win', name: 'Primera Victoria', description: 'Responde tu primera pregunta correctamente', icon: '🎉', unlockedAt: null, unlocked: false },
+  { id: 'streak_5', name: 'En Racha', description: 'Responde 5 preguntas correctas seguidas', icon: '🔥', unlockedAt: null, unlocked: false },
+  { id: 'streak_10', name: 'Imparable', description: 'Responde 10 preguntas correctas seguidas', icon: '💪', unlockedAt: null, unlocked: false },
+  { id: 'perfect_quiz', name: 'Perfecto', description: 'Completa un quiz sin errores', icon: '💯', unlockedAt: null, unlocked: false },
+  { id: 'questions_100', name: 'Medio Millar', description: 'Responde 100 preguntas', icon: '📊', unlockedAt: null, unlocked: false },
+  { id: 'questions_500', name: 'Maestro', description: 'Responde 500 preguntas', icon: '👑', unlockedAt: null, unlocked: false },
+  { id: 'simulacro_5', name: 'Estudioso', description: 'Completa 5 simulacros', icon: '📖', unlockedAt: null, unlocked: false },
+  { id: 'simulacro_20', name: 'Dedicado', description: 'Completa 20 simulacros', icon: '🏅', unlockedAt: null, unlocked: false },
+  { id: 'badge_level_3', name: 'Experto', description: 'Alcanza nivel 3 en una insignia', icon: '🎖️', unlockedAt: null, unlocked: false },
+  { id: 'badge_level_6', name: 'Leyenda', description: 'Completa una insignia al máximo', icon: '🌟', unlockedAt: null, unlocked: false },
+  { id: 'all_universities', name: 'Explorador', description: 'Practica con todas las universidades', icon: '🗺️', unlockedAt: null, unlocked: false },
+  { id: 'preguntados_3_wins', name: 'Campeón', description: 'Gana 3 juegos de Preguntados', icon: '🏆', unlockedAt: null, unlocked: false }
+]
+
+// Progreso inicial por defecto
+const DEFAULT_PROGRESS: StudentProgress = {
+  stats: {
+    totalQuestions: 0,
+    correctAnswers: 0,
+    wrongAnswers: 0,
+    bestStreak: 0,
+    currentStreak: 0,
+    bestScore: 0,
+    gamesPlayed: 0,
+    simulacrosPlayed: 0,
+    preguntadosWins: 0
+  },
+  powerUps: {
+    fiftyFifty: 2,
+    extraTime: 2,
+    changeQuestion: 1,
+    hint: 2
+  },
+  badges: [...MAIN_BADGES],
+  achievements: [...AVAILABLE_ACHIEVEMENTS],
+  razonamientoCorrect: 0,
+  conocimientoCorrect: 0,
+  universityProgress: {}
 }
 
 // Lista de sedes
@@ -1372,17 +1482,292 @@ export default function StudyMaster() {
   })
   const [registering, setRegistering] = useState(false)
 
+  // ============================================
+  // SISTEMA DE PROGRESO Y POWER-UPS
+  // ============================================
+  const [studentProgress, setStudentProgress] = useState<StudentProgress>(DEFAULT_PROGRESS)
+  const [showProfile, setShowProfile] = useState(false)
+  
+  // Power-ups activos durante el quiz
+  const [activePowerUps, setActivePowerUps] = useState({
+    fiftyFiftyUsed: false,
+    eliminatedOptions: [] as number[],
+    hintShown: false,
+    extraTimeAdded: false
+  })
+
   // Hydration effect - leer localStorage después del montaje
   useEffect(() => {
     const saved = getSavedStudent()
     if (saved) {
       setStudent(saved)
       setShowRegistration(false)
+      // Cargar progreso guardado
+      const savedProgress = localStorage.getItem('studentProgress')
+      if (savedProgress) {
+        try {
+          const parsed = JSON.parse(savedProgress)
+          setStudentProgress(parsed)
+        } catch {
+          setStudentProgress(DEFAULT_PROGRESS)
+        }
+      }
     } else {
       setShowRegistration(true)
     }
     setIsHydrated(true)
   }, [])
+
+  // Guardar progreso cuando cambie
+  useEffect(() => {
+    if (student) {
+      localStorage.setItem('studentProgress', JSON.stringify(studentProgress))
+    }
+  }, [studentProgress, student])
+
+  // Función para actualizar progreso
+  const updateProgress = (correct: boolean, category: string, university: string) => {
+    setStudentProgress(prev => {
+      const newStats = { ...prev.stats }
+      newStats.totalQuestions += 1
+      
+      if (correct) {
+        newStats.correctAnswers += 1
+        newStats.currentStreak += 1
+        if (newStats.currentStreak > newStats.bestStreak) {
+          newStats.bestStreak = newStats.currentStreak
+        }
+        
+        // Actualizar insignias principales
+        let newRazonamiento = prev.razonamientoCorrect
+        let newConocimiento = prev.conocimientoCorrect
+        
+        if (category === 'razonamiento') {
+          newRazonamiento += 1
+        } else if (category === 'conocimiento') {
+          newConocimiento += 1
+        }
+        
+        // Actualizar progreso por universidad
+        const newUniProgress = { ...prev.universityProgress }
+        newUniProgress[university] = (newUniProgress[university] || 0) + 1
+        
+        // Actualizar nivel de insignias
+        const newBadges = prev.badges.map(badge => {
+          const progress = badge.type === 'razonamiento' ? newRazonamiento : newConocimiento
+          let newLevel = 0
+          for (let i = 0; i < BADGE_THRESHOLDS.length; i++) {
+            if (progress >= BADGE_THRESHOLDS[i]) newLevel = i + 1
+          }
+          return { ...badge, progress, level: newLevel }
+        })
+        
+        // Verificar logros
+        const newAchievements = [...prev.achievements]
+        
+        // Primera pregunta correcta
+        if (newStats.correctAnswers === 1) {
+          const idx = newAchievements.findIndex(a => a.id === 'first_win')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        
+        // Rachas
+        if (newStats.currentStreak >= 5) {
+          const idx = newAchievements.findIndex(a => a.id === 'streak_5')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        if (newStats.currentStreak >= 10) {
+          const idx = newAchievements.findIndex(a => a.id === 'streak_10')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        
+        // Total de preguntas
+        if (newStats.totalQuestions >= 100) {
+          const idx = newAchievements.findIndex(a => a.id === 'questions_100')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        if (newStats.totalQuestions >= 500) {
+          const idx = newAchievements.findIndex(a => a.id === 'questions_500')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        
+        // Nivel de insignia
+        const maxLevel = Math.max(...newBadges.map(b => b.level))
+        if (maxLevel >= 3) {
+          const idx = newAchievements.findIndex(a => a.id === 'badge_level_3')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        if (maxLevel >= 6) {
+          const idx = newAchievements.findIndex(a => a.id === 'badge_level_6')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        
+        return {
+          ...prev,
+          stats: newStats,
+          badges: newBadges,
+          achievements: newAchievements,
+          razonamientoCorrect: newRazonamiento,
+          conocimientoCorrect: newConocimiento,
+          universityProgress: newUniProgress
+        }
+      } else {
+        newStats.wrongAnswers += 1
+        newStats.currentStreak = 0
+        return { ...prev, stats: newStats }
+      }
+    })
+  }
+
+  // Función para usar power-up
+  const usePowerUp = (type: 'fiftyFifty' | 'extraTime' | 'changeQuestion' | 'hint') => {
+    if (studentProgress.powerUps[type] <= 0) return false
+    
+    setStudentProgress(prev => ({
+      ...prev,
+      powerUps: {
+        ...prev.powerUps,
+        [type]: prev.powerUps[type] - 1
+      }
+    }))
+    
+    return true
+  }
+
+  // Función para ganar power-ups (al completar actividades)
+  const earnPowerUps = () => {
+    setStudentProgress(prev => ({
+      ...prev,
+      powerUps: {
+        fiftyFifty: prev.powerUps.fiftyFifty + 1,
+        extraTime: prev.powerUps.extraTime + 1,
+        changeQuestion: prev.powerUps.changeQuestion + 1,
+        hint: prev.powerUps.hint + 1
+      }
+    }))
+  }
+
+  // Función para actualizar progreso al responder
+  const updateProgress = (correct: boolean, category: string, university: string) => {
+    setStudentProgress(prev => {
+      const newStats = { ...prev.stats }
+      newStats.totalQuestions += 1
+      
+      if (correct) {
+        newStats.correctAnswers += 1
+        newStats.currentStreak += 1
+        if (newStats.currentStreak > newStats.bestStreak) {
+          newStats.bestStreak = newStats.currentStreak
+        }
+        
+        // Actualizar insignias principales
+        let newRazonamiento = prev.razonamientoCorrect
+        let newConocimiento = prev.conocimientoCorrect
+        
+        if (category === 'razonamiento') {
+          newRazonamiento += 1
+        } else if (category === 'conocimiento' || category === 'conocimiento_razonamiento') {
+          newConocimiento += 1
+        }
+        
+        // Actualizar progreso por universidad
+        const newUniProgress = { ...prev.universityProgress }
+        newUniProgress[university] = (newUniProgress[university] || 0) + 1
+        
+        // Actualizar nivel de insignias
+        const newBadges = prev.badges.map(badge => {
+          const progress = badge.type === 'razonamiento' ? newRazonamiento : newConocimiento
+          let newLevel = 0
+          for (let i = 0; i < BADGE_THRESHOLDS.length; i++) {
+            if (progress >= BADGE_THRESHOLDS[i]) newLevel = i + 1
+          }
+          return { ...badge, progress, level: newLevel }
+        })
+        
+        // Verificar logros
+        const newAchievements = [...prev.achievements]
+        
+        // Primera respuesta correcta
+        if (newStats.correctAnswers === 1) {
+          const idx = newAchievements.findIndex(a => a.id === 'first_win')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        
+        // Rachas
+        if (newStats.currentStreak >= 5) {
+          const idx = newAchievements.findIndex(a => a.id === 'streak_5')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        if (newStats.currentStreak >= 10) {
+          const idx = newAchievements.findIndex(a => a.id === 'streak_10')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        
+        // Total de preguntas
+        if (newStats.totalQuestions >= 100) {
+          const idx = newAchievements.findIndex(a => a.id === 'questions_100')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        if (newStats.totalQuestions >= 500) {
+          const idx = newAchievements.findIndex(a => a.id === 'questions_500')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        
+        // Nivel de insignia
+        const maxLevel = Math.max(...newBadges.map(b => b.level))
+        if (maxLevel >= 3) {
+          const idx = newAchievements.findIndex(a => a.id === 'badge_level_3')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        if (maxLevel >= 6) {
+          const idx = newAchievements.findIndex(a => a.id === 'badge_level_6')
+          if (idx >= 0 && !newAchievements[idx].unlocked) {
+            newAchievements[idx] = { ...newAchievements[idx], unlocked: true, unlockedAt: new Date() }
+          }
+        }
+        
+        return {
+          ...prev,
+          stats: newStats,
+          badges: newBadges,
+          achievements: newAchievements,
+          razonamientoCorrect: newRazonamiento,
+          conocimientoCorrect: newConocimiento,
+          universityProgress: newUniProgress
+        }
+      } else {
+        newStats.wrongAnswers += 1
+        newStats.currentStreak = 0
+        return { ...prev, stats: newStats }
+      }
+    })
+  }
 
   // Navigation state
   const [currentScreen, setCurrentScreen] = useState<string>('home')
@@ -2278,6 +2663,17 @@ export default function StudyMaster() {
     const isCorrect = selectedAnswer === q.correctAnswer
 
     if (isCorrect) setScore(prev => prev + 1)
+    
+    // Actualizar progreso del estudiante
+    updateProgress(isCorrect, selectedCategory, selectedUniversity)
+    
+    // Reset power-ups para la siguiente pregunta
+    setActivePowerUps({
+      fiftyFiftyUsed: false,
+      eliminatedOptions: [],
+      hintShown: false,
+      extraTimeAdded: false
+    })
   }
 
   const nextQuestion = () => {
@@ -2307,6 +2703,13 @@ export default function StudyMaster() {
     setSelectedAnswer(null)
     setAnswered(false)
     setTopicResults([])
+    // Reset power-ups activos
+    setActivePowerUps({
+      fiftyFiftyUsed: false,
+      eliminatedOptions: [],
+      hintShown: false,
+      extraTimeAdded: false
+    })
     if (quizMode === 'simulacro') {
       if (selectedUniversity === 'espol' || selectedUniversity === 'uce' || selectedUniversity === 'epn' || selectedUniversity === 'utn' || selectedUniversity === 'utc' || selectedUniversity === 'yachay' || selectedUniversity === 'unach' || selectedUniversity === 'utmach' || selectedUniversity === 'unl') {
         setCurrentScreen('areas') // ESPOL, UCE, EPN, UTN, UTC, YACHAY, UNACH, UTMACH, UNL no tienen carreras, regresa a áreas
@@ -2317,6 +2720,100 @@ export default function StudyMaster() {
       }
     } else {
       setCurrentScreen('topics')
+    }
+  }
+
+  // ============================================
+  // FUNCIONES DE POWER-UPS
+  // ============================================
+  
+  // 50/50 - Eliminar 2 opciones incorrectas
+  const handleFiftyFifty = () => {
+    if (!usePowerUp('fiftyFifty') || answered || activePowerUps.fiftyFiftyUsed) return
+    
+    const q = questions[currentQuestionIndex]
+    const correctIdx = q.correctAnswer
+    const wrongOptions = [0, 1, 2, 3].filter(i => i !== correctIdx)
+    
+    // Eliminar 2 opciones incorrectas aleatorias
+    const shuffled = wrongOptions.sort(() => Math.random() - 0.5)
+    const toEliminate = shuffled.slice(0, 2)
+    
+    setActivePowerUps(prev => ({
+      ...prev,
+      fiftyFiftyUsed: true,
+      eliminatedOptions: toEliminate
+    }))
+  }
+  
+  // +Tiempo - Añadir 10 segundos
+  const handleExtraTime = () => {
+    if (!usePowerUp('extraTime') || activePowerUps.extraTimeAdded) return
+    
+    setTimeRemaining(prev => prev + 10)
+    setActivePowerUps(prev => ({
+      ...prev,
+      extraTimeAdded: true
+    }))
+  }
+  
+  // Cambiar pregunta
+  const handleChangeQuestion = async () => {
+    if (!usePowerUp('changeQuestion') || answered) return
+    
+    // Cargar una nueva pregunta
+    setLoadingQuestions(true)
+    try {
+      const params = new URLSearchParams({
+        category: selectedCategory,
+        university: selectedUniversity,
+        type: selectedArea,
+        topic: selectedTopic,
+        limit: '1'
+      })
+      const res = await fetch(`/api/questions?${params}`)
+      const data = await res.json()
+      if (data.questions && data.questions.length > 0) {
+        // Reemplazar la pregunta actual
+        const newQuestions = [...questions]
+        newQuestions[currentQuestionIndex] = data.questions[0]
+        setQuestions(newQuestions)
+        setSelectedAnswer(null)
+        setActivePowerUps({
+          fiftyFiftyUsed: false,
+          eliminatedOptions: [],
+          hintShown: false,
+          extraTimeAdded: false
+        })
+      }
+    } catch (error) {
+      console.error('Error changing question:', error)
+    }
+    setLoadingQuestions(false)
+  }
+  
+  // Mostrar pista
+  const handleShowHint = () => {
+    if (!usePowerUp('hint') || activePowerUps.hintShown) return
+    
+    setActivePowerUps(prev => ({
+      ...prev,
+      hintShown: true
+    }))
+  }
+
+  // Calcular nivel de insignia para mostrar
+  const getBadgeDisplay = (badge: Badge) => {
+    const { level, progress, thresholds } = badge
+    const nextThreshold = level < 6 ? thresholds[level] : thresholds[5]
+    const prevThreshold = level > 0 ? thresholds[level - 1] : 0
+    const progressInLevel = level < 6 ? ((progress - prevThreshold) / (nextThreshold - prevThreshold)) * 100 : 100
+    
+    return {
+      stars: BADGE_LEVELS[Math.min(level, 5)],
+      progressPercent: Math.min(progressInLevel, 100),
+      currentProgress: progress,
+      nextGoal: level < 6 ? nextThreshold : null
     }
   }
 
@@ -2957,20 +3454,34 @@ export default function StudyMaster() {
       )}
 
       {/* MAIN APP HEADER */}
-      {isHydrated && !showRegistration && !showAdmin && !showMrQ && !showGame && !showTutorial && !showLogin && (
+      {isHydrated && !showRegistration && !showAdmin && !showMrQ && !showGame && !showTutorial && !showLogin && !showProfile && (
         <>
           <div className="fixed top-0 left-0 right-0 z-40 p-4" style={{ background: COLORS.surface, borderBottom: '1px solid #E2E8F0' }}>
             <div className="max-w-4xl mx-auto flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <button onClick={() => setShowProfile(true)} className="flex items-center gap-3 hover:opacity-80 transition">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: COLORS.primary }}>
                   <span className="text-white font-bold">{student?.apodo?.charAt(0) || student?.nombre?.charAt(0) || '?'}</span>
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="font-bold" style={{ color: COLORS.text }}>{student?.apodo || student?.nombre}</p>
-                  <p className="text-xs" style={{ color: COLORS.textMuted }}>{student?.sede}</p>
+                  <div className="flex items-center gap-1">
+                    {/* Mini insignias */}
+                    {studentProgress.badges.map(badge => (
+                      <span key={badge.id} className="text-xs" style={{ color: badge.color }}>
+                        {badge.icon} {BADGE_LEVELS[badge.level] || ''}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </button>
               <div className="flex items-center gap-2">
+                {/* Power-ups rápidos */}
+                <div className="hidden sm:flex items-center gap-1 text-xs px-2 py-1 rounded-full" style={{ background: '#F0F4FF' }}>
+                  <span title="50/50">🎯{studentProgress.powerUps.fiftyFifty}</span>
+                  <span title="+Tiempo">⏰{studentProgress.powerUps.extraTime}</span>
+                  <span title="Cambiar">🔄{studentProgress.powerUps.changeQuestion}</span>
+                  <span title="Pista">💡{studentProgress.powerUps.hint}</span>
+                </div>
                 <button onClick={() => setShowLogin(true)} className="p-2 rounded-full hover:bg-gray-100" title="Admin">
                   <svg className="w-5 h-5" style={{ color: isLoggedIn ? COLORS.success : COLORS.textMuted }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -2987,6 +3498,170 @@ export default function StudyMaster() {
           </div>
           <div className="h-20" />
         </>
+      )}
+
+      {/* PROFILE SCREEN */}
+      {showProfile && (
+        <div className="fixed inset-0 z-50 overflow-auto" style={{ background: COLORS.background }}>
+          <div className="p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <button onClick={() => setShowProfile(false)} className="flex items-center gap-2" style={{ color: COLORS.textMuted }}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Volver
+              </button>
+              <h2 className="text-xl font-bold" style={{ color: COLORS.text }}>Mi Perfil</h2>
+              <div className="w-16"></div>
+            </div>
+
+            {/* User Info Card */}
+            <div className="card p-6 mb-4">
+              <div className="flex items-center gap-4">
+                <img src="/mr-q-avatar.png" alt="Avatar" className="w-16 h-16 rounded-full object-cover border-4" style={{ borderColor: COLORS.primary }} />
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold" style={{ color: COLORS.text }}>{student?.nombre}</h3>
+                  <p style={{ color: COLORS.textMuted }}>CI: {student?.ci} • Sede: {student?.sede}</p>
+                  <p className="text-sm mt-1" style={{ color: COLORS.textMuted }}>
+                    @{student?.apodo || student?.nombre?.split(' ')[0]}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Power-ups Card */}
+            <div className="card p-4 mb-4">
+              <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>⚡ POWER-UPS DISPONIBLES</h4>
+              <div className="grid grid-cols-4 gap-2">
+                <div className="text-center p-3 rounded-xl" style={{ background: '#F0F4FF' }}>
+                  <div className="text-2xl mb-1">🎯</div>
+                  <div className="font-bold" style={{ color: COLORS.primary }}>{studentProgress.powerUps.fiftyFifty}</div>
+                  <div className="text-xs" style={{ color: COLORS.textMuted }}>50/50</div>
+                </div>
+                <div className="text-center p-3 rounded-xl" style={{ background: '#FEF3C7' }}>
+                  <div className="text-2xl mb-1">⏰</div>
+                  <div className="font-bold" style={{ color: COLORS.secondary }}>{studentProgress.powerUps.extraTime}</div>
+                  <div className="text-xs" style={{ color: COLORS.textMuted }}>+Tiempo</div>
+                </div>
+                <div className="text-center p-3 rounded-xl" style={{ background: '#DCFCE7' }}>
+                  <div className="text-2xl mb-1">🔄</div>
+                  <div className="font-bold" style={{ color: COLORS.success }}>{studentProgress.powerUps.changeQuestion}</div>
+                  <div className="text-xs" style={{ color: COLORS.textMuted }}>Cambiar</div>
+                </div>
+                <div className="text-center p-3 rounded-xl" style={{ background: '#FCE7F3' }}>
+                  <div className="text-2xl mb-1">💡</div>
+                  <div className="font-bold" style={{ color: '#EC4899' }}>{studentProgress.powerUps.hint}</div>
+                  <div className="text-xs" style={{ color: COLORS.textMuted }}>Pista</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Badges */}
+            <div className="card p-4 mb-4">
+              <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>🏆 INSIGNIAS PRINCIPALES</h4>
+              <div className="space-y-4">
+                {studentProgress.badges.map(badge => {
+                  const nextGoal = badge.level < 6 ? BADGE_THRESHOLDS[badge.level] : null
+                  const progressPercent = badge.level < 6 
+                    ? ((badge.progress - (badge.level > 0 ? BADGE_THRESHOLDS[badge.level - 1] : 0)) / (BADGE_THRESHOLDS[badge.level] - (badge.level > 0 ? BADGE_THRESHOLDS[badge.level - 1] : 0))) * 100
+                    : 100
+                  
+                  return (
+                    <div key={badge.id} className="p-3 rounded-xl" style={{ background: `${badge.color}15` }}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{badge.icon}</span>
+                          <span className="font-medium" style={{ color: COLORS.text }}>{badge.name}</span>
+                        </div>
+                        <span style={{ color: badge.color }}>{BADGE_LEVELS[badge.level] || '☆'}</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: '#E2E8F0' }}>
+                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPercent}%`, background: badge.color }}></div>
+                      </div>
+                      <div className="flex justify-between mt-1 text-xs" style={{ color: COLORS.textMuted }}>
+                        <span>{badge.progress} correctas</span>
+                        {nextGoal && <span>Próximo: {nextGoal}</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="card p-4 mb-4">
+              <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>📊 ESTADÍSTICAS</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl text-center" style={{ background: '#F8FAFC' }}>
+                  <div className="text-2xl font-bold" style={{ color: COLORS.primary }}>{studentProgress.stats.totalQuestions}</div>
+                  <div className="text-xs" style={{ color: COLORS.textMuted }}>Preguntas</div>
+                </div>
+                <div className="p-3 rounded-xl text-center" style={{ background: '#F8FAFC' }}>
+                  <div className="text-2xl font-bold" style={{ color: COLORS.success }}>{studentProgress.stats.correctAnswers}</div>
+                  <div className="text-xs" style={{ color: COLORS.textMuted }}>Correctas</div>
+                </div>
+                <div className="p-3 rounded-xl text-center" style={{ background: '#F8FAFC' }}>
+                  <div className="text-2xl font-bold" style={{ color: COLORS.secondary }}>🔥 {studentProgress.stats.bestStreak}</div>
+                  <div className="text-xs" style={{ color: COLORS.textMuted }}>Mejor racha</div>
+                </div>
+                <div className="p-3 rounded-xl text-center" style={{ background: '#F8FAFC' }}>
+                  <div className="text-2xl font-bold" style={{ color: COLORS.primary }}>🎮 {studentProgress.stats.preguntadosWins}</div>
+                  <div className="text-xs" style={{ color: COLORS.textMuted }}>Victorias</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Achievements */}
+            <div className="card p-4 mb-4">
+              <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>🎖️ LOGROS</h4>
+              <div className="grid grid-cols-3 gap-2">
+                {studentProgress.achievements.filter(a => a.unlocked).map(achievement => (
+                  <div key={achievement.id} className="p-2 rounded-xl text-center" style={{ background: '#DCFCE7' }}>
+                    <div className="text-2xl">{achievement.icon}</div>
+                    <div className="text-xs font-medium" style={{ color: COLORS.text }}>{achievement.name}</div>
+                  </div>
+                ))}
+                {studentProgress.achievements.filter(a => !a.unlocked).slice(0, 6).map(achievement => (
+                  <div key={achievement.id} className="p-2 rounded-xl text-center opacity-50" style={{ background: '#F1F5F9' }}>
+                    <div className="text-2xl grayscale">{achievement.icon}</div>
+                    <div className="text-xs" style={{ color: COLORS.textMuted }}>{achievement.name}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* University Progress */}
+            {Object.keys(studentProgress.universityProgress).length > 0 && (
+              <div className="card p-4">
+                <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>🏛️ PROGRESO POR UNIVERSIDAD</h4>
+                <div className="space-y-2">
+                  {Object.entries(studentProgress.universityProgress).map(([uniId, correct]) => {
+                    const uni = Object.values(universities).flat().find(u => u.id === uniId)
+                    if (!uni) return null
+                    const level = BADGE_THRESHOLDS.findIndex(t => correct < t)
+                    const displayLevel = level === -1 ? 5 : level - 1
+                    
+                    return (
+                      <div key={uniId} className="flex items-center justify-between p-2 rounded-lg" style={{ background: '#F8FAFC' }}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ background: uni.color }}>
+                            {uni.name.substring(0, 2)}
+                          </div>
+                          <span style={{ color: COLORS.text }}>{uni.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <span style={{ color: uni.color }}>{BADGE_LEVELS[Math.max(0, displayLevel)] || '☆'}</span>
+                          <span className="text-xs ml-2" style={{ color: COLORS.textMuted }}>{correct} ✓</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* HOME SCREEN */}
@@ -4132,10 +4807,82 @@ export default function StudyMaster() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col">
-              <div className="card p-6 mb-6">
+              <div className="card p-6 mb-4">
                 {currentQuestion?.questionImage && <img src={currentQuestion.questionImage} alt="Imagen" className="question-image" />}
                 <h2 className="text-xl md:text-2xl font-medium leading-relaxed" style={{ color: COLORS.text }}>{currentQuestion?.question}</h2>
               </div>
+
+              {/* Power-ups Bar */}
+              <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
+                <button
+                  onClick={handleFiftyFifty}
+                  disabled={answered || activePowerUps.fiftyFiftyUsed || studentProgress.powerUps.fiftyFifty <= 0}
+                  className={`flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium transition ${
+                    activePowerUps.fiftyFiftyUsed ? 'opacity-50' : 'hover:scale-105'
+                  }`}
+                  style={{ 
+                    background: activePowerUps.fiftyFiftyUsed ? '#E2E8F0' : '#F0F4FF',
+                    color: activePowerUps.fiftyFiftyUsed ? COLORS.textMuted : COLORS.primary
+                  }}
+                >
+                  🎯 50/50
+                  <span className="text-xs opacity-70">({studentProgress.powerUps.fiftyFifty})</span>
+                </button>
+                
+                {quizMode === 'simulacro' && timerActive && (
+                  <button
+                    onClick={handleExtraTime}
+                    disabled={answered || activePowerUps.extraTimeAdded || studentProgress.powerUps.extraTime <= 0}
+                    className={`flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium transition ${
+                      activePowerUps.extraTimeAdded ? 'opacity-50' : 'hover:scale-105'
+                    }`}
+                    style={{ 
+                      background: activePowerUps.extraTimeAdded ? '#E2E8F0' : '#FEF3C7',
+                      color: activePowerUps.extraTimeAdded ? COLORS.textMuted : COLORS.secondary
+                    }}
+                  >
+                    ⏰ +10s
+                    <span className="text-xs opacity-70">({studentProgress.powerUps.extraTime})</span>
+                  </button>
+                )}
+                
+                <button
+                  onClick={handleChangeQuestion}
+                  disabled={answered || studentProgress.powerUps.changeQuestion <= 0 || loadingQuestions}
+                  className="flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium transition hover:scale-105"
+                  style={{ 
+                    background: '#DCFCE7',
+                    color: COLORS.success
+                  }}
+                >
+                  🔄 Cambiar
+                  <span className="text-xs opacity-70">({studentProgress.powerUps.changeQuestion})</span>
+                </button>
+                
+                <button
+                  onClick={handleShowHint}
+                  disabled={answered || activePowerUps.hintShown || studentProgress.powerUps.hint <= 0}
+                  className={`flex items-center gap-1 px-3 py-2 rounded-full text-sm font-medium transition ${
+                    activePowerUps.hintShown ? 'opacity-50' : 'hover:scale-105'
+                  }`}
+                  style={{ 
+                    background: activePowerUps.hintShown ? '#E2E8F0' : '#FCE7F3',
+                    color: activePowerUps.hintShown ? COLORS.textMuted : '#EC4899'
+                  }}
+                >
+                  💡 Pista
+                  <span className="text-xs opacity-70">({studentProgress.powerUps.hint})</span>
+                </button>
+              </div>
+
+              {/* Hint Display */}
+              {activePowerUps.hintShown && currentQuestion?.explanation && !answered && (
+                <div className="card p-4 mb-4" style={{ background: '#FCE7F3', borderColor: '#EC4899' }}>
+                  <p className="text-sm font-medium" style={{ color: '#BE185D' }}>
+                    💡 Pista: {currentQuestion.explanation}
+                  </p>
+                </div>
+              )}
 
               <div className="grid gap-3 mb-6">
                 {[ 
@@ -4144,23 +4891,30 @@ export default function StudyMaster() {
                   { text: currentQuestion?.optionC, img: currentQuestion?.optionCImage },
                   { text: currentQuestion?.optionD, img: currentQuestion?.optionDImage }
                 ].map((opt, i) => {
+                  // Check if option is eliminated by 50/50
+                  const isEliminated = activePowerUps.eliminatedOptions.includes(i)
+                  
                   let btnClass = 'option-btn p-4 text-left w-full'
-                  if (answered) {
-                    if (i === currentQuestion?.correctAnswer) btnClass += ' correct'
-                    else if (i === selectedAnswer && selectedAnswer !== currentQuestion?.correctAnswer) btnClass += ' wrong'
-                  } else if (selectedAnswer === i) {
-                    btnClass += ' selected'
+                  if (isEliminated) {
+                    btnClass += ' opacity-30'
+                  } else {
+                    if (answered) {
+                      if (i === currentQuestion?.correctAnswer) btnClass += ' correct'
+                      else if (i === selectedAnswer && selectedAnswer !== currentQuestion?.correctAnswer) btnClass += ' wrong'
+                    } else if (selectedAnswer === i) {
+                      btnClass += ' selected'
+                    }
                   }
 
                   return (
-                    <button key={i} className={btnClass} onClick={() => !answered && setSelectedAnswer(i)} disabled={answered}>
+                    <button key={i} className={btnClass} onClick={() => !answered && !isEliminated && setSelectedAnswer(i)} disabled={answered || isEliminated}>
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: '#F1F5F9', color: COLORS.text }}>
-                          {String.fromCharCode(65 + i)}
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: isEliminated ? '#F1F5F9' : '#F1F5F9', color: COLORS.text }}>
+                          {isEliminated ? '✗' : String.fromCharCode(65 + i)}
                         </div>
                         <div className="flex-1">
-                          {opt.img && <img src={opt.img} alt={`Opción ${String.fromCharCode(65 + i)}`} className="question-image" style={{ maxHeight: '100px' }} />}
-                          <span style={{ color: COLORS.text }}>{opt.text}</span>
+                          {opt.img && !isEliminated && <img src={opt.img} alt={`Opción ${String.fromCharCode(65 + i)}`} className="question-image" style={{ maxHeight: '100px' }} />}
+                          <span style={{ color: isEliminated ? COLORS.textMuted : COLORS.text }}>{opt.text}</span>
                         </div>
                       </div>
                     </button>
