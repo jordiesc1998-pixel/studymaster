@@ -7,7 +7,7 @@ function hashPassword(password: string): string {
   return createHash('sha256').update(password).digest('hex')
 }
 
-// Crear usuario admin por defecto si no existe
+// Crear o actualizar usuario admin por defecto
 async function ensureAdminExists() {
   const existingAdmin = await db.user.findUnique({
     where: { username: 'admin' }
@@ -17,9 +17,15 @@ async function ensureAdminExists() {
     await db.user.create({
       data: {
         username: 'admin',
-        password: hashPassword('123321abc'),
+        password: hashPassword('123'),
         role: 'admin'
       }
+    })
+  } else {
+    // Actualizar contraseña si ya existe
+    await db.user.update({
+      where: { username: 'admin' },
+      data: { password: hashPassword('123') }
     })
   }
 }
