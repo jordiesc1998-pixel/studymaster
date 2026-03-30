@@ -2791,9 +2791,22 @@ export default function StudyMaster() {
   // MR. Q
   const initMrQ = async () => {
     setMrqMood('feliz')
+    
+    // Mensaje personalizado según el resultado
+    const scorePercent = (score / Math.max(questions.length, 1))
+    let greeting = ''
+    
+    if (scorePercent >= 0.7) {
+      greeting = `¡Hola! 👋 **Soy MR. Q y estoy aquí para ayudarte.**\n\n¡Felicitaciones por tu excelente resultado! 🎉 Obtuviste ${score} de ${questions.length} respuestas correctas.\n\nSi quieres seguir mejorando, puedo:\n\n• 📚 Explicarte temas avanzados\n• 💡 Darte ejercicios de mayor dificultad\n• 🎯 Ayudarte a perfeccionar tu técnica\n\n¿En qué puedo ayudarte?`
+    } else if (scorePercent >= 0.4) {
+      greeting = `¡Hola! 👋 **Soy MR. Q y estoy aquí para ayudarte.**\n\nBuen trabajo obtuviste ${score} de ${questions.length} respuestas correctas. Con un poco más de práctica llegarás más lejos.\n\nPuedo ayudarte a:\n\n• 📚 Explicarte los temas que te costaron\n• 💡 Darte ejercicios de práctica\n• ❓ Resolver tus dudas específicas\n\n¿Qué te gustaría practicar?`
+    } else {
+      greeting = `¡Hola! 👋 **Soy MR. Q y estoy aquí para ayudarte.**\n\nVeo que obtuviste ${score} de ${questions.length} respuestas correctas. ¡No te desanimes! Estoy aquí para ayudarte a mejorar.\n\nPuedo:\n\n• 📚 Explicarte los temas paso a paso\n• 💡 Darte ejercicios sencillos para practicar\n• ❓ Resolver todas tus dudas\n• 🎯 Darte tips de estudio\n\n¿Por dónde quieres empezar?`
+    }
+    
     setChatMessages([{
       role: 'assistant',
-      content: `¡Hola! 👋 Soy **MR. Q**, tu tutor personal.\n\nVi que tuviste dificultad con el quiz. ¡No te preocupes! Estoy aquí para ayudarte a entender de forma sencilla.\n\n¿Qué te gustaría hacer?\n\n• Pedirme una explicación\n• Practicar con ejercicios\n• Resolver dudas específicas`
+      content: greeting
     }])
     setShowMrQ(true)
   }
@@ -3674,6 +3687,32 @@ export default function StudyMaster() {
                 <div className="flex-1">
                   <h3 className="text-xl font-bold text-white">Preguntados</h3>
                   <p className="text-white/80 text-sm">¡Juega y aprende con 8 jugadores!</p>
+                </div>
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* MR. Q Button - Ayuda IA */}
+            <div 
+              className="card p-5 cursor-pointer slide-up"
+              style={{ animationDelay: '0.7s', background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)' }}
+              onClick={() => {
+                setChatMessages([{
+                  role: 'assistant',
+                  content: `¡Hola! 👋 **Soy MR. Q y estoy aquí para ayudarte.**\n\nSoy tu tutor personal con inteligencia artificial. Puedo:\n\n• 📚 Explicarte cualquier tema\n• 💡 Ayudarte con ejercicios\n• ❓ Resolver tus dudas\n• 🎯 Darte tips de estudio\n\n¿En qué puedo ayudarte hoy?`
+                }])
+                setShowMrQ(true)
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg bg-white/20">
+                  <span className="text-2xl">🤖</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white">MR. Q - Ayuda IA</h3>
+                  <p className="text-white/80 text-sm">Tu tutor personal con IA</p>
                 </div>
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
