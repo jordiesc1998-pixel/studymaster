@@ -69,6 +69,40 @@ const SEDES = [
 ]
 
 // ============================================
+// PREGUNTADOS - CONFIGURACIÓN DE REINOS
+// ============================================
+
+// Universidades por categoría
+const UNIVERSIDADES_RAZONAMIENTO = ['uce', 'unach', 'utmach']
+const UNIVERSIDADES_CONOCIMIENTO = ['espoch', 'epn', 'utn', 'espe']
+
+// Reinos Modo Razonamiento (3 reinos, 5 correctas cada uno)
+const REINOS_RAZONAMIENTO = [
+  { id: 'numerico', name: 'Reino de Numérico', icon: '🔢', color: '#3B82F6', topics: ['series', 'proporciones', 'porcentajes', 'edades', 'operaciones', 'fracciones'] },
+  { id: 'verbal', name: 'Reino de Verbal', icon: '📝', color: '#10B981', topics: ['sinonimos', 'antonimos', 'analogias', 'comprension', 'ordenacion'] },
+  { id: 'abstracto', name: 'Reino de Abstracto', icon: '🧩', color: '#8B5CF6', topics: ['figuras', 'dominos', 'dados', 'matrices', 'giros', 'secuencias'] }
+]
+
+// Reinos Modo Conocimiento (6 reinos, 5 correctas cada uno)
+const REINOS_CONOCIMIENTO = [
+  { id: 'matematica', name: 'Reino de Matemática', icon: '📐', color: '#3B82F6', topics: ['algebra', 'geometria', 'trigonometria', 'matematicas'] },
+  { id: 'fisica', name: 'Reino de Física', icon: '⚡', color: '#F59E0B', topics: ['movimiento', 'fuerzas', 'energia', 'ondas', 'fisica'] },
+  { id: 'quimica', name: 'Reino de Química', icon: '🧪', color: '#10B981', topics: ['atomo', 'tabla periodica', 'reacciones', 'quimica'] },
+  { id: 'lengua', name: 'Reino de Lengua y Literatura', icon: '📚', color: '#EC4899', topics: ['gramatica', 'ortografia', 'literatura', 'lenguaje'] },
+  { id: 'ciudadania', name: 'Reino de Ciudadanía/Sociales', icon: '🏛️', color: '#6366F1', topics: ['ciudadania', 'historia', 'sociedad', 'emprendimiento'] },
+  { id: 'biologia', name: 'Reino de Biología', icon: '🧬', color: '#14B8A6', topics: ['celula', 'genetica', 'anatomia', 'biologia'] }
+]
+
+// Reinos Modo Aleatorio (3 reinos por dificultad)
+const REINOS_ALEATORIO = [
+  { id: 'facil', name: 'Reino Fácil', icon: '🟢', color: '#22C55E', difficulty: 'easy' },
+  { id: 'medio', name: 'Reino Medio', icon: '🟡', color: '#EAB308', difficulty: 'medium' },
+  { id: 'dificil', name: 'Reino Difícil', icon: '🔴', color: '#EF4444', difficulty: 'hard' }
+]
+
+const PREGUNTADOS_QUESTIONS_TO_WIN = 5
+
+// ============================================
 // ESTRUCTURA ESPOCH
 // ============================================
 
@@ -1438,6 +1472,22 @@ export default function StudyMaster() {
   const [gameAnswer, setGameAnswer] = useState<number | null>(null)
   const [gameAnswered, setGameAnswered] = useState(false)
 
+  // Preguntados Game States
+  const [preguntadosMode, setPreguntadosMode] = useState<'razonamiento' | 'conocimiento' | 'aleatorio' | null>(null)
+  const [preguntadosPlayers, setPreguntadosPlayers] = useState<string[]>([])
+  const [preguntadosCurrentPlayer, setPreguntadosCurrentPlayer] = useState<number>(0)
+  const [preguntadosPlayerOrder, setPreguntadosPlayerOrder] = useState<number[]>([])
+  const [preguntadosReinos, setPreguntadosReinos] = useState<Record<string, number>>({})
+  const [preguntadosCurrentReino, setPreguntadosCurrentReino] = useState<string>('')
+  const [preguntadosQuestion, setPreguntadosQuestion] = useState<Question | null>(null)
+  const [preguntadosAnswered, setPreguntadosAnswered] = useState(false)
+  const [preguntadosSelectedAnswer, setPreguntadosSelectedAnswer] = useState<number | null>(null)
+  const [preguntadosTimer, setPreguntadosTimer] = useState(20)
+  const [preguntadosShowWheel, setPreguntadosShowWheel] = useState(false)
+  const [preguntadosSpinning, setPreguntadosSpinning] = useState(false)
+  const [preguntadosWinner, setPreguntadosWinner] = useState<string | null>(null)
+  const [preguntadosSetupStep, setPreguntadosSetupStep] = useState<'mode' | 'players' | 'game'>('mode')
+
   // Tutorial states
   const [showTutorial, setShowTutorial] = useState(false)
   const [tutorialContent, setTutorialContent] = useState<{
@@ -1702,6 +1752,236 @@ export default function StudyMaster() {
     } catch {
       return null
     }
+  }
+
+  // ============================================
+  // PREGUNTADOS GAME FUNCTIONS
+  // ============================================
+
+  // Inicializar reinos para todos los jugadores
+  const initPreguntadosReinos = (playerCount: number, mode: 'razonamiento' | 'conocimiento' | 'aleatorio') => {
+    const reinos = mode === 'razonamiento' ? REINOS_RAZONAMIENTO :
+                   mode === 'conocimiento' ? REINOS_CONOCIMIENTO : REINOS_ALEATORIO
+    
+    const initialReinos: Record<string, number> = {}
+    for (let i = 0; i < playerCount; i++) {
+      reinos.forEach(reino => {
+        initialReinos[`${i}-${reino.id}`] = 0
+      })
+    }
+    return initialReinos
+  }
+
+  // Generar orden aleatorio de jugadores
+  const shufflePlayerOrder = (count: number) => {
+    const order = Array.from({ length: count }, (_, i) => i)
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[order[i], order[j]] = [order[j], order[i]]
+    }
+    return order
+  }
+
+  // Iniciar juego de Preguntados
+  const startPreguntados = (mode: 'razonamiento' | 'conocimiento' | 'aleatorio', players: string[]) => {
+    setPreguntadosMode(mode)
+    setPreguntadosPlayers(players)
+    setPreguntadosPlayerOrder(shufflePlayerOrder(players.length))
+    setPreguntadosCurrentPlayer(0)
+    setPreguntadosReinos(initPreguntadosReinos(players.length, mode))
+    setPreguntadosSetupStep('game')
+    setPreguntadosShowWheel(true)
+    setPreguntadosWinner(null)
+  }
+
+  // Girar ruleta para seleccionar reino
+  const spinWheel = () => {
+    if (!preguntadosMode) return
+    
+    setPreguntadosSpinning(true)
+    
+    const reinos = preguntadosMode === 'razonamiento' ? REINOS_RAZONAMIENTO :
+                   preguntadosMode === 'conocimiento' ? REINOS_CONOCIMIENTO : REINOS_ALEATORIO
+    
+    // Seleccionar reino aleatorio
+    setTimeout(() => {
+      const randomReino = reinos[Math.floor(Math.random() * reinos.length)]
+      setPreguntadosCurrentReino(randomReino.id)
+      setPreguntadosSpinning(false)
+      setPreguntadosShowWheel(false)
+      
+      // Cargar pregunta del reino
+      loadPreguntadosQuestion(randomReino)
+    }, 1500)
+  }
+
+  // Cargar pregunta según el reino
+  const loadPreguntadosQuestion = async (reino: { id: string; topics?: string[]; difficulty?: string }) => {
+    if (!preguntadosMode) return
+    
+    try {
+      let universities: string[] = []
+      let topics: string[] = reino.topics || []
+      
+      if (preguntadosMode === 'razonamiento') {
+        universities = UNIVERSIDADES_RAZONAMIENTO
+      } else if (preguntadosMode === 'conocimiento') {
+        universities = UNIVERSIDADES_CONOCIMIENTO
+      } else {
+        // Aleatorio: todas las universidades
+        universities = [...UNIVERSIDADES_RAZONAMIENTO, ...UNIVERSIDADES_CONOCIMIENTO]
+      }
+
+      // Construir URL de la API
+      const params = new URLSearchParams()
+      params.append('limit', '1')
+      if (universities.length > 0) {
+        params.append('university', universities.join(','))
+      }
+      if (topics.length > 0) {
+        params.append('topic', topics.join(','))
+      }
+      if (reino.difficulty) {
+        params.append('difficulty', reino.difficulty)
+      }
+
+      const res = await fetch(`/api/questions?${params.toString()}`)
+      const data = await res.json()
+      
+      if (data.questions && data.questions.length > 0) {
+        setPreguntadosQuestion(data.questions[0])
+      } else {
+        // Pregunta demo si no hay en la base de datos
+        setPreguntadosQuestion({
+          id: `demo-${Date.now()}`,
+          question: `Pregunta de ${reino.id}`,
+          optionA: 'Opción A',
+          optionB: 'Opción B',
+          optionC: 'Opción C',
+          optionD: 'Opción D',
+          correctAnswer: 0,
+          category: preguntadosMode,
+          university: universities[0] || 'general',
+          type: preguntadosMode,
+          topic: reino.id
+        })
+      }
+      
+      setPreguntadosTimer(20)
+      setPreguntadosAnswered(false)
+      setPreguntadosSelectedAnswer(null)
+    } catch (error) {
+      console.error('Error loading question:', error)
+      // Pregunta de respaldo
+      setPreguntadosQuestion({
+        id: `fallback-${Date.now()}`,
+        question: '¿Cuál es la respuesta correcta?',
+        optionA: 'Esta es la correcta',
+        optionB: 'Incorrecta',
+        optionC: 'Incorrecta',
+        optionD: 'Incorrecta',
+        correctAnswer: 0,
+        category: preguntadosMode || 'general',
+        university: 'general',
+        type: preguntadosMode || 'general',
+        topic: reino.id
+      })
+      setPreguntadosTimer(20)
+      setPreguntadosAnswered(false)
+      setPreguntadosSelectedAnswer(null)
+    }
+  }
+
+  // Responder pregunta
+  const answerPreguntados = (answerIndex: number) => {
+    if (preguntadosAnswered || !preguntadosQuestion) return
+    
+    setPreguntadosSelectedAnswer(answerIndex)
+    setPreguntadosAnswered(true)
+    
+    const isCorrect = answerIndex === preguntadosQuestion.correctAnswer
+    
+    if (isCorrect) {
+      // Incrementar progreso en el reino
+      const key = `${preguntadosPlayerOrder[preguntadosCurrentPlayer]}-${preguntadosCurrentReino}`
+      const currentProgress = preguntadosReinos[key] || 0
+      const newProgress = currentProgress + 1
+      
+      setPreguntadosReinos(prev => ({
+        ...prev,
+        [key]: newProgress
+      }))
+      
+      // Verificar si completó el reino
+      if (newProgress >= PREGUNTADOS_QUESTIONS_TO_WIN) {
+        // Verificar si ganó todos los reinos
+        checkWinner()
+      }
+    }
+  }
+
+  // Verificar si hay ganador
+  const checkWinner = () => {
+    if (!preguntadosMode) return
+    
+    const reinos = preguntadosMode === 'razonamiento' ? REINOS_RAZONAMIENTO :
+                   preguntadosMode === 'conocimiento' ? REINOS_CONOCIMIENTO : REINOS_ALEATORIO
+    
+    const currentPlayerIndex = preguntadosPlayerOrder[preguntadosCurrentPlayer]
+    
+    // Verificar si el jugador actual completó todos los reinos
+    const allComplete = reinos.every(reino => {
+      const key = `${currentPlayerIndex}-${reino.id}`
+      return (preguntadosReinos[key] || 0) >= PREGUNTADOS_QUESTIONS_TO_WIN
+    })
+    
+    if (allComplete) {
+      setPreguntadosWinner(preguntadosPlayers[currentPlayerIndex])
+    }
+  }
+
+  // Siguiente turno
+  const nextTurn = () => {
+    if (preguntadosWinner) return
+    
+    // Pasar al siguiente jugador en el orden aleatorio
+    const nextPlayerIndex = (preguntadosCurrentPlayer + 1) % preguntadosPlayers.length
+    setPreguntadosCurrentPlayer(nextPlayerIndex)
+    setPreguntadosShowWheel(true)
+    setPreguntadosQuestion(null)
+    setPreguntadosAnswered(false)
+    setPreguntadosSelectedAnswer(null)
+  }
+
+  // Timer effect
+  useEffect(() => {
+    if (preguntadosQuestion && !preguntadosAnswered && preguntadosTimer > 0) {
+      const timer = setTimeout(() => {
+        setPreguntadosTimer(prev => prev - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    } else if (preguntadosTimer === 0 && !preguntadosAnswered && preguntadosQuestion) {
+      // Tiempo agotado
+      setPreguntadosAnswered(true)
+    }
+  }, [preguntadosTimer, preguntadosQuestion, preguntadosAnswered])
+
+  // Reset Preguntados
+  const resetPreguntados = () => {
+    setPreguntadosMode(null)
+    setPreguntadosPlayers([])
+    setPreguntadosCurrentPlayer(0)
+    setPreguntadosPlayerOrder([])
+    setPreguntadosReinos({})
+    setPreguntadosCurrentReino('')
+    setPreguntadosQuestion(null)
+    setPreguntadosAnswered(false)
+    setPreguntadosSelectedAnswer(null)
+    setPreguntadosTimer(20)
+    setPreguntadosShowWheel(false)
+    setPreguntadosSpinning(false)
+    setPreguntadosWinner(null)
+    setPreguntadosSetupStep('mode')
   }
 
   // ============================================
