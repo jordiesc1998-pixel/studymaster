@@ -2844,20 +2844,32 @@ export default function StudyMaster() {
       {isHydrated && showRegistration && !showAdmin && !showMrQ && !showGame && !showTutorial && !showLogin && (
         <div className="min-h-screen flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-md">
+            {/* Avatar MR. Q y Bienvenida */}
             <div className="text-center mb-8 fade-in">
-              <div className="text-6xl mb-4 pulse-icon">🎓</div>
+              <div className="relative inline-block mb-4">
+                <img 
+                  src="/mr-q-avatar.png" 
+                  alt="Mr. Q" 
+                  className="w-32 h-32 rounded-full object-cover border-4 shadow-xl avatar-bounce"
+                  style={{ borderColor: COLORS.primary }}
+                />
+                <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full flex items-center justify-center text-xl"
+                     style={{ background: COLORS.secondary }}>
+                  🎓
+                </div>
+              </div>
               <h1 className="text-4xl font-bold mb-2" style={{ color: COLORS.primary }}>StudyMaster</h1>
-              <p style={{ color: COLORS.textMuted }}>Tu asistente inteligente para estudiar</p>
+              <p style={{ color: COLORS.textMuted }}>¡Hola! Soy <strong>Mr. Q</strong>, tu tutor personal</p>
+              <p className="text-sm mt-2" style={{ color: COLORS.textMuted }}>
+                Te ayudaré a preparar tu examen de ingreso a la universidad 🚀
+              </p>
             </div>
 
             <div className="card p-6 slide-up">
               <h2 className="text-xl font-bold mb-4 text-center" style={{ color: COLORS.text }}>
-                ¡Hola! 👋 Antes de empezar...
+                ¡Regístrate para comenzar!
               </h2>
-              <p className="text-center mb-6" style={{ color: COLORS.textMuted }}>
-                Cuéntanos un poco sobre ti
-              </p>
-
+              
               <form onSubmit={handleRegistration} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-1" style={{ color: COLORS.text }}>Nombre completo *</label>
@@ -2878,14 +2890,39 @@ export default function StudyMaster() {
                     {SEDES.map(sede => <option key={sede} value={sede}>{sede}</option>)}
                   </select>
                 </div>
-                <button type="submit" disabled={registering} className="w-full py-4 btn-primary text-lg" style={{ opacity: registering ? 0.7 : 1 }}>
-                  {registering ? 'Registrando...' : '¡Comenzar! 🚀'}
+                <button type="submit" disabled={registering} className="w-full py-4 btn-primary text-lg flex items-center justify-center gap-2" style={{ opacity: registering ? 0.7 : 1 }}>
+                  {registering ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Registrando...
+                    </>
+                  ) : (
+                    <>
+                      ¡Comenzar! <img src="/mr-q-avatar.png" alt="" className="w-6 h-6 rounded-full" />
+                    </>
+                  )}
                 </button>
               </form>
 
               <button onClick={() => setShowLogin(true)} className="w-full mt-4 py-3 text-sm font-medium" style={{ color: COLORS.textMuted }}>
                 ⚙️ Soy administrador
               </button>
+            </div>
+            
+            {/* Features preview */}
+            <div className="mt-6 grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.8)' }}>
+                <div className="text-2xl mb-1">📚</div>
+                <p className="text-xs" style={{ color: COLORS.textMuted }}>+10 Universidades</p>
+              </div>
+              <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.8)' }}>
+                <div className="text-2xl mb-1">🤖</div>
+                <p className="text-xs" style={{ color: COLORS.textMuted }}>IA Mr. Q</p>
+              </div>
+              <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.8)' }}>
+                <div className="text-2xl mb-1">🎮</div>
+                <p className="text-xs" style={{ color: COLORS.textMuted }}>Preguntados</p>
+              </div>
             </div>
           </div>
         </div>
