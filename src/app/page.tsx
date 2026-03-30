@@ -1699,7 +1699,7 @@ export default function StudyMaster() {
 
   // Admin state
   const [showAdmin, setShowAdmin] = useState(false)
-  const [adminTab, setAdminTab] = useState<'single' | 'aiken' | 'games'>('single')
+  const [adminTab, setAdminTab] = useState<'single' | 'aiken' | 'image' | 'videos' | 'games'>('single')
   const [adminCat, setAdminCat] = useState<string>('')
   const [adminUni, setAdminUni] = useState<string>('')
   const [adminArea, setAdminArea] = useState<string>('')
@@ -1712,8 +1712,23 @@ export default function StudyMaster() {
     question: '', optA: '', optB: '', optC: '', optD: ''
   })
   const [aikenText, setAikenText] = useState('')
+  const [aikenPreview, setAikenPreview] = useState<Question[]>([])
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<{ success: boolean; count: number } | null>(null)
+  
+  // Video Admin states
+  const [adminVideos, setAdminVideos] = useState<any[]>([])
+  const [newVideo, setNewVideo] = useState({
+    title: '', url: '', description: '', category: '', university: '', area: '', topic: ''
+  })
+  const [savingVideo, setSavingVideo] = useState(false)
+  
+  // Image Admin states
+  const [imageQuestion, setImageQuestion] = useState({
+    text: '', optA: '', optB: '', optC: '', optD: '', correct: '0', explanation: ''
+  })
+  const [mainImage, setMainImage] = useState('')
+  const [optionImages, setOptionImages] = useState({ A: '', B: '', C: '', D: '' })
 
   // Game Admin states
   const [adminGames, setAdminGames] = useState<any[]>([])
@@ -3038,6 +3053,226 @@ export default function StudyMaster() {
     }
 
     setImporting(false)
+  }
+
+  // Parsear AIKEN para vista previa
+  const parseAikenPreview = () => {
+    if (!aikenText.trim()) {
+      setAikenPreview([])
+      return
+    }
+
+    const questions: Question[] = []
+    const blocks = aikenText.trim().split(/\n\n+/)
+    
+    blocks.forEach((block, idx) => {
+      const lines = block.trim().split('\n').filter(l => l.trim())
+      if (lines.length < 5) return
+      
+      const question = lines[0].trim()
+      const options: string[] = []
+      let correctAnswer = 0
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim()
+        if (line.match(/^[A-D][).]\s*/i)) {
+          options.push(line.replace(/^[A-D][).]\s*/i, ''))
+        } else if (line.toUpperCase().startsWith('ANSWER:')) {
+          const answer = line.split(':')[1].trim().toUpperCase()
+          correctAnswer = ['A', 'B', 'C', 'D'].indexOf(answer)
+        }
+      }
+      
+      if (options.length === 4 && correctAnswer >= 0) {
+        questions.push({
+          id: `preview-${idx}`,
+          question,
+          optionA: options[0],
+          optionB: options[1],
+          optionC: options[2],
+          optionD: options[3],
+          correctAnswer,
+          explanation: null,
+          questionImage: null,
+          optionAImage: null,
+          optionBImage: null,
+          optionCImage: null,
+          optionDImage: null,
+          category: adminCat,
+          university: adminUni,
+          type: adminArea,
+          topic: adminTopic
+        })
+      }
+    })
+    
+    setAikenPreview(questions)
+  }
+
+  // Video Admin functions
+  const loadAdminVideos = async () => {
+    try {
+      const res = await fetch('/api/tutorials')
+      const data = await res.json()
+      setAdminVideos(data.tutorials || [])
+    } catch {
+      console.error('Error loading videos')
+    }
+  }
+
+  const saveNewVideo = async () => {
+    if (!newVideo.title.trim() || !newVideo.url.trim()) {
+      alert('Ingresa título y URL del video')
+      return
+    }
+
+    // Extraer ID de YouTube
+    const youtubeId = getYouTubeId(newVideo.url)
+    if (!youtubeId) {
+      alert('URL de YouTube no válida')
+      return
+    }
+
+    setSavingVideo(true)
+
+    try {
+      const res = await fetch('/api/tutorials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: newVideo.title,
+          youtubeUrl: newVideo.url,
+          description: newVideo.description,
+          category: newVideo.category || adminCat,
+          university: newVideo.university || adminUni,
+          area: newVideo.area || adminArea,
+          topic: newVideo.topic || adminTopic
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        alert('Video guardado correctamente')
+        setNewVideo({
+          title: '', url: '', description: '', category: '', university: '', area: '', topic: ''
+        })
+        loadAdminVideos()
+      } else {
+        alert(data.error || 'Error al guardar')
+      }
+    } catch {
+      alert('Error de conexión')
+    }
+
+    setSavingVideo(false)
+  }
+
+  const deleteVideo = async (id: string) => {
+    if (!confirm('¿Eliminar este video?')) return
+
+    try {
+      await fetch(`/api/tutorials?id=${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setAdminVideos(prev => prev.filter(v => v.id !== id))
+    } catch {
+      alert('Error al eliminar')
+    }
+  }
+
+  // Image Question Admin functions
+  const handleMainImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (file.size > 2 * 1024 * 1024) {
+      alert('La imagen no puede superar 2MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setMainImage(event.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleOptionImageUpload = (option: 'A' | 'B' | 'C' | 'D', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (file.size > 2 * 1024 * 1024) {
+      alert('La imagen no puede superar 2MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setOptionImages(prev => ({ ...prev, [option]: event.target?.result as string }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const saveImageQuestion = async () => {
+    if (!imageQuestion.text.trim()) {
+      alert('Ingresa la pregunta')
+      return
+    }
+
+    if (!adminCat || !adminUni || !adminArea || !adminTopic) {
+      alert('Selecciona categoría, universidad, área y tema')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/questions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          question: imageQuestion.text,
+          optionA: imageQuestion.optA,
+          optionB: imageQuestion.optB,
+          optionC: imageQuestion.optC,
+          optionD: imageQuestion.optD,
+          correctAnswer: parseInt(imageQuestion.correct),
+          explanation: imageQuestion.explanation || null,
+          questionImage: mainImage || null,
+          optionAImage: optionImages.A || null,
+          optionBImage: optionImages.B || null,
+          optionCImage: optionImages.C || null,
+          optionDImage: optionImages.D || null,
+          category: adminCat,
+          university: adminUni,
+          type: adminArea,
+          topic: adminTopic
+        })
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        alert('Pregunta con imagen guardada correctamente')
+        setImageQuestion({ text: '', optA: '', optB: '', optC: '', optD: '', correct: '0', explanation: '' })
+        setMainImage('')
+        setOptionImages({ A: '', B: '', C: '', D: '' })
+        
+        // Recargar preguntas
+        const params = new URLSearchParams({ category: adminCat, university: adminUni, type: adminArea, topic: adminTopic })
+        const qRes = await fetch(`/api/questions?${params}`)
+        const qData = await qRes.json()
+        setAdminQuestions(qData.questions || [])
+      } else {
+        alert(data.error || 'Error al guardar')
+      }
+    } catch {
+      alert('Error de conexión')
+    }
   }
 
   // Game Admin functions
@@ -5288,15 +5523,21 @@ export default function StudyMaster() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-4 mb-6 border-b overflow-x-auto" style={{ borderColor: '#E2E8F0' }}>
-              <button onClick={() => setAdminTab('single')} className={`pb-3 px-4 font-medium whitespace-nowrap ${adminTab === 'single' ? 'border-b-2' : ''}`} style={{ borderColor: adminTab === 'single' ? COLORS.primary : 'transparent', color: adminTab === 'single' ? COLORS.primary : COLORS.textMuted }}>
-                📝 Agregar Pregunta
+            <div className="flex gap-2 mb-6 border-b overflow-x-auto pb-1" style={{ borderColor: '#E2E8F0' }}>
+              <button onClick={() => setAdminTab('single')} className={`pb-3 px-4 font-medium whitespace-nowrap rounded-t-lg transition ${adminTab === 'single' ? 'border-b-2 bg-blue-50' : ''}`} style={{ borderColor: adminTab === 'single' ? COLORS.primary : 'transparent', color: adminTab === 'single' ? COLORS.primary : COLORS.textMuted }}>
+                ✏️ Manual
               </button>
-              <button onClick={() => setAdminTab('aiken')} className={`pb-3 px-4 font-medium whitespace-nowrap ${adminTab === 'aiken' ? 'border-b-2' : ''}`} style={{ borderColor: adminTab === 'aiken' ? COLORS.primary : 'transparent', color: adminTab === 'aiken' ? COLORS.primary : COLORS.textMuted }}>
+              <button onClick={() => setAdminTab('aiken')} className={`pb-3 px-4 font-medium whitespace-nowrap rounded-t-lg transition ${adminTab === 'aiken' ? 'border-b-2 bg-blue-50' : ''}`} style={{ borderColor: adminTab === 'aiken' ? COLORS.primary : 'transparent', color: adminTab === 'aiken' ? COLORS.primary : COLORS.textMuted }}>
                 📄 Importar AIKEN
               </button>
-              <button onClick={() => setAdminTab('games')} className={`pb-3 px-4 font-medium whitespace-nowrap ${adminTab === 'games' ? 'border-b-2' : ''}`} style={{ borderColor: adminTab === 'games' ? COLORS.primary : 'transparent', color: adminTab === 'games' ? COLORS.primary : COLORS.textMuted }}>
-                🎮 Administrar Juegos
+              <button onClick={() => setAdminTab('image')} className={`pb-3 px-4 font-medium whitespace-nowrap rounded-t-lg transition ${adminTab === 'image' ? 'border-b-2 bg-blue-50' : ''}`} style={{ borderColor: adminTab === 'image' ? COLORS.primary : 'transparent', color: adminTab === 'image' ? COLORS.primary : COLORS.textMuted }}>
+                🖼️ Con Imagen
+              </button>
+              <button onClick={() => { setAdminTab('videos'); loadAdminVideos() }} className={`pb-3 px-4 font-medium whitespace-nowrap rounded-t-lg transition ${adminTab === 'videos' ? 'border-b-2 bg-blue-50' : ''}`} style={{ borderColor: adminTab === 'videos' ? COLORS.primary : 'transparent', color: adminTab === 'videos' ? COLORS.primary : COLORS.textMuted }}>
+                📺 Videos
+              </button>
+              <button onClick={() => { setAdminTab('games'); loadAdminGames() }} className={`pb-3 px-4 font-medium whitespace-nowrap rounded-t-lg transition ${adminTab === 'games' ? 'border-b-2 bg-blue-50' : ''}`} style={{ borderColor: adminTab === 'games' ? COLORS.primary : 'transparent', color: adminTab === 'games' ? COLORS.primary : COLORS.textMuted }}>
+                🎮 Juegos
               </button>
             </div>
 
@@ -5381,28 +5622,336 @@ export default function StudyMaster() {
 
             {/* AIKEN Import */}
             {adminTab === 'aiken' && (
-              <div>
-                <div className="mb-4 p-4 rounded-xl" style={{ background: '#F0F4FF' }}>
-                  <h4 className="font-bold mb-2" style={{ color: COLORS.primary }}>📝 Formato AIKEN</h4>
-                  <pre className="text-xs overflow-x-auto" style={{ color: COLORS.textMuted }}>{`¿Pregunta?
-A. Opción 1
-B. Opción 2
-C. Opción 3
-D. Opción 4
-ANSWER: B`}</pre>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <div className="mb-4 p-4 rounded-xl" style={{ background: '#F0F4FF' }}>
+                    <h4 className="font-bold mb-2" style={{ color: COLORS.primary }}>📝 Formato AIKEN</h4>
+                    <pre className="text-xs overflow-x-auto" style={{ color: COLORS.textMuted }}>{`¿Cuál es la capital de Francia?
+A) Londres
+B) París
+C) Berlín
+D) Madrid
+ANSWER: B
+
+¿Otra pregunta aquí?
+A) Opción 1
+B) Opción 2
+C) Opción 3
+D) Opción 4
+ANSWER: C`}</pre>
+                  </div>
+
+                  <textarea 
+                    value={aikenText} 
+                    onChange={(e) => { setAikenText(e.target.value); setAikenPreview([]) }} 
+                    placeholder="Pega aquí las preguntas en formato AIKEN..." 
+                    className="input-field mb-4" 
+                    rows={10} 
+                  />
+
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={parseAikenPreview} 
+                      disabled={!aikenText.trim()} 
+                      className="flex-1 py-3 font-medium rounded-xl"
+                      style={{ background: '#E0F2FE', color: COLORS.primary, opacity: aikenText.trim() ? 1 : 0.5 }}
+                    >
+                      👁️ Vista Previa
+                    </button>
+                    <button 
+                      onClick={importAiken} 
+                      disabled={importing || !aikenText.trim()} 
+                      className="flex-1 py-3 btn-primary" 
+                      style={{ opacity: importing || !aikenText.trim() ? 0.5 : 1 }}
+                    >
+                      {importing ? 'Importando...' : '💾 Guardar Todo'}
+                    </button>
+                  </div>
+
+                  {importResult && (
+                    <div className={`p-3 rounded-xl mt-4 ${importResult.success ? 'bg-green-100' : 'bg-red-100'}`}>
+                      {importResult.success ? `✅ Se importaron ${importResult.count} preguntas` : '❌ Error al importar'}
+                    </div>
+                  )}
                 </div>
 
-                <textarea value={aikenText} onChange={(e) => setAikenText(e.target.value)} placeholder="Pega aquí las preguntas en formato AIKEN..." className="input-field mb-4" rows={10} />
-
-                {importResult && (
-                  <div className={`p-3 rounded-xl mb-4 ${importResult.success ? 'bg-green-100' : 'bg-red-100'}`}>
-                    {importResult.success ? `✅ Se importaron ${importResult.count} preguntas` : '❌ Error al importar'}
+                <div>
+                  <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>👁️ Vista Previa ({aikenPreview.length} preguntas)</h4>
+                  <div className="max-h-96 overflow-y-auto space-y-2">
+                    {aikenPreview.length > 0 ? aikenPreview.map((q, idx) => (
+                      <div key={idx} className="p-3 border rounded-xl" style={{ background: '#F8FAFC' }}>
+                        <p className="text-sm font-medium" style={{ color: COLORS.text }}>{idx + 1}. {q.question}</p>
+                        <div className="mt-2 text-xs space-y-1">
+                          <p style={{ color: COLORS.textMuted }}>A) {q.optionA}</p>
+                          <p style={{ color: COLORS.textMuted }}>B) {q.optionB}</p>
+                          <p style={{ color: COLORS.textMuted }}>C) {q.optionC}</p>
+                          <p style={{ color: COLORS.textMuted }}>D) {q.optionD}</p>
+                        </div>
+                        <p className="text-xs mt-2 font-medium" style={{ color: COLORS.success }}>
+                          ✓ Respuesta: {String.fromCharCode(65 + q.correctAnswer)}
+                        </p>
+                      </div>
+                    )) : (
+                      <div className="text-center py-8" style={{ color: COLORS.textMuted }}>
+                        <span className="text-3xl block mb-2">📄</span>
+                        Pega las preguntas y haz clic en "Vista Previa"
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
+              </div>
+            )}
 
-                <button onClick={importAiken} disabled={importing || !aikenText.trim()} className="w-full py-3 btn-primary" style={{ opacity: importing || !aikenText.trim() ? 0.5 : 1 }}>
-                  {importing ? 'Importando...' : 'Importar Preguntas'}
-                </button>
+            {/* Image Question Tab */}
+            {adminTab === 'image' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>🖼️ Pregunta con Imagen</h4>
+                  
+                  <div className="space-y-4">
+                    {/* Imagen principal */}
+                    <div className="p-4 border-2 border-dashed rounded-xl text-center" style={{ borderColor: '#E2E8F0' }}>
+                      {mainImage ? (
+                        <div className="relative inline-block">
+                          <img src={mainImage} alt="Imagen principal" className="max-h-40 rounded" />
+                          <button 
+                            onClick={() => setMainImage('')} 
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-sm"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <input type="file" accept="image/*" onChange={handleMainImageUpload} className="hidden" id="mainImageInput" />
+                          <label htmlFor="mainImageInput" className="cursor-pointer">
+                            <span className="text-4xl block mb-2">📷</span>
+                            <p className="text-sm" style={{ color: COLORS.textMuted }}>Click para subir imagen de la pregunta</p>
+                            <p className="text-xs" style={{ color: COLORS.textMuted }}>PNG, JPG hasta 2MB</p>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Pregunta */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Texto de la Pregunta</label>
+                      <textarea 
+                        value={imageQuestion.text} 
+                        onChange={(e) => setImageQuestion({ ...imageQuestion, text: e.target.value })} 
+                        className="input-field" 
+                        rows={2}
+                        placeholder="Escribe la pregunta..."
+                      />
+                    </div>
+
+                    {/* Opciones con imágenes */}
+                    {['A', 'B', 'C', 'D'].map((letter) => (
+                      <div key={letter} className="flex gap-3 items-start">
+                        <div className="flex-shrink-0">
+                          {optionImages[letter as 'A' | 'B' | 'C' | 'D'] ? (
+                            <div className="relative">
+                              <img 
+                                src={optionImages[letter as 'A' | 'B' | 'C' | 'D']} 
+                                alt={`Opción ${letter}`} 
+                                className="w-16 h-16 object-cover rounded" 
+                              />
+                              <button 
+                                onClick={() => setOptionImages(prev => ({ ...prev, [letter]: '' }))} 
+                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ) : (
+                            <label 
+                              className="w-16 h-16 border-2 border-dashed rounded flex items-center justify-center cursor-pointer hover:bg-gray-50"
+                              style={{ borderColor: '#E2E8F0' }}
+                            >
+                              <input 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={(e) => handleOptionImageUpload(letter as 'A' | 'B' | 'C' | 'D', e)} 
+                                className="hidden" 
+                              />
+                              <span className="text-xl">🖼️</span>
+                            </label>
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium mb-1">Opción {letter}</label>
+                          <input 
+                            type="text" 
+                            value={imageQuestion[`opt${letter}` as keyof typeof imageQuestion] as string} 
+                            onChange={(e) => setImageQuestion({ ...imageQuestion, [`opt${letter}`]: e.target.value })} 
+                            className="input-field" 
+                            placeholder={`Texto opción ${letter}`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Respuesta correcta y explicación */}
+                    <div className="flex gap-3">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Correcta</label>
+                        <select 
+                          value={imageQuestion.correct} 
+                          onChange={(e) => setImageQuestion({ ...imageQuestion, correct: e.target.value })} 
+                          className="select-field"
+                        >
+                          <option value="0">A</option>
+                          <option value="1">B</option>
+                          <option value="2">C</option>
+                          <option value="3">D</option>
+                        </select>
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium mb-1">Explicación (opcional)</label>
+                        <input 
+                          type="text" 
+                          value={imageQuestion.explanation} 
+                          onChange={(e) => setImageQuestion({ ...imageQuestion, explanation: e.target.value })} 
+                          className="input-field" 
+                          placeholder="Explicación de la respuesta"
+                        />
+                      </div>
+                    </div>
+
+                    <button onClick={saveImageQuestion} className="w-full py-3 btn-primary">
+                      💾 Guardar Pregunta con Imagen
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lista de preguntas con imagen */}
+                <div>
+                  <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>Preguntas Guardadas ({adminQuestions.filter(q => q.questionImage).length})</h4>
+                  <div className="max-h-96 overflow-y-auto space-y-2">
+                    {adminQuestions.filter(q => q.questionImage).map(q => (
+                      <div key={q.id} className="p-3 border rounded-xl" style={{ background: '#F8FAFC' }}>
+                        <div className="flex gap-3">
+                          {q.questionImage && (
+                            <img src={q.questionImage} alt="" className="w-16 h-16 object-cover rounded" />
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm" style={{ color: COLORS.text }}>{q.question}</p>
+                            <p className="text-xs mt-1" style={{ color: COLORS.success }}>
+                              ✓ {String.fromCharCode(65 + q.correctAnswer)}
+                            </p>
+                          </div>
+                          <button onClick={() => deleteQuestion(q.id)} className="text-red-500">✕</button>
+                        </div>
+                      </div>
+                    ))}
+                    {adminQuestions.filter(q => q.questionImage).length === 0 && (
+                      <div className="text-center py-8" style={{ color: COLORS.textMuted }}>
+                        <span className="text-3xl block mb-2">🖼️</span>
+                        No hay preguntas con imagen
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Videos Tab */}
+            {adminTab === 'videos' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>📺 Añadir Video de YouTube</h4>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Título del Video *</label>
+                      <input 
+                        type="text" 
+                        value={newVideo.title} 
+                        onChange={(e) => setNewVideo({ ...newVideo, title: e.target.value })} 
+                        className="input-field" 
+                        placeholder="Ej: Tutorial de Matemáticas"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">URL de YouTube *</label>
+                      <input 
+                        type="text" 
+                        value={newVideo.url} 
+                        onChange={(e) => setNewVideo({ ...newVideo, url: e.target.value })} 
+                        className="input-field" 
+                        placeholder="https://www.youtube.com/watch?v=..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Descripción</label>
+                      <textarea 
+                        value={newVideo.description} 
+                        onChange={(e) => setNewVideo({ ...newVideo, description: e.target.value })} 
+                        className="input-field" 
+                        rows={2}
+                        placeholder="Breve descripción del contenido"
+                      />
+                    </div>
+
+                    {/* Vista previa del video */}
+                    {newVideo.url && getYouTubeId(newVideo.url) && (
+                      <div className="rounded-xl overflow-hidden">
+                        <img 
+                          src={`https://img.youtube.com/vi/${getYouTubeId(newVideo.url)}/mqdefault.jpg`} 
+                          alt="Video preview" 
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
+                    <button 
+                      onClick={saveNewVideo} 
+                      disabled={savingVideo || !newVideo.title.trim() || !newVideo.url.trim()} 
+                      className="w-full py-3 btn-primary"
+                      style={{ opacity: savingVideo || !newVideo.title.trim() || !newVideo.url.trim() ? 0.5 : 1 }}
+                    >
+                      {savingVideo ? 'Guardando...' : '💾 Guardar Video'}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-bold mb-3" style={{ color: COLORS.text }}>Videos Guardados ({adminVideos.length})</h4>
+                  <div className="max-h-96 overflow-y-auto space-y-2">
+                    {adminVideos.map(video => (
+                      <div key={video.id} className="p-3 border rounded-xl" style={{ background: '#F8FAFC' }}>
+                        <div className="flex gap-3">
+                          {video.youtubeUrl && getYouTubeId(video.youtubeUrl) && (
+                            <img 
+                              src={`https://img.youtube.com/vi/${getYouTubeId(video.youtubeUrl)}/mqdefault.jpg`} 
+                              alt="" 
+                              className="w-24 h-16 object-cover rounded"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <h5 className="font-medium text-sm" style={{ color: COLORS.text }}>{video.title}</h5>
+                            {video.description && (
+                              <p className="text-xs" style={{ color: COLORS.textMuted }}>{video.description}</p>
+                            )}
+                            <div className="flex gap-2 mt-1 text-xs" style={{ color: COLORS.textMuted }}>
+                              {video.university && <span>📍 {video.university}</span>}
+                              {video.topic && <span>📚 {video.topic}</span>}
+                            </div>
+                          </div>
+                          <button onClick={() => deleteVideo(video.id)} className="text-red-500">🗑️</button>
+                        </div>
+                      </div>
+                    ))}
+                    {adminVideos.length === 0 && (
+                      <div className="text-center py-8" style={{ color: COLORS.textMuted }}>
+                        <span className="text-3xl block mb-2">📺</span>
+                        No hay videos guardados
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
