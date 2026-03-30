@@ -1487,6 +1487,8 @@ export default function StudyMaster() {
   const [preguntadosSpinning, setPreguntadosSpinning] = useState(false)
   const [preguntadosWinner, setPreguntadosWinner] = useState<string | null>(null)
   const [preguntadosSetupStep, setPreguntadosSetupStep] = useState<'mode' | 'players' | 'game'>('mode')
+  const [showPreguntados, setShowPreguntados] = useState(false)
+  const [preguntadosPlayerNames, setPreguntadosPlayerNames] = useState<string[]>(Array(8).fill(''))
 
   // Tutorial states
   const [showTutorial, setShowTutorial] = useState(false)
@@ -1765,9 +1767,11 @@ export default function StudyMaster() {
     
     const initialReinos: Record<string, number> = {}
     for (let i = 0; i < playerCount; i++) {
-      reinos.forEach(reino => {
-        initialReinos[`${i}-${reino.id}`] = 0
-      })
+      if (reinos) {
+        reinos.forEach((reino: { id: string }) => {
+          initialReinos[`${i}-${reino.id}`] = 0
+        })
+      }
     }
     return initialReinos
   }
@@ -1982,6 +1986,8 @@ export default function StudyMaster() {
     setPreguntadosSpinning(false)
     setPreguntadosWinner(null)
     setPreguntadosSetupStep('mode')
+    setShowPreguntados(false)
+    setPreguntadosPlayerNames(Array(8).fill(''))
   }
 
   // ============================================
@@ -2944,7 +2950,7 @@ export default function StudyMaster() {
       )}
 
       {/* HOME SCREEN */}
-      {isHydrated && currentScreen === 'home' && !showRegistration && !showAdmin && !showMrQ && !showGame && !showTutorial && (
+      {isHydrated && currentScreen === 'home' && !showRegistration && !showAdmin && !showMrQ && !showGame && !showTutorial && !showPreguntados && (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 pt-0">
           <div className="text-center mb-12 fade-in">
             <h1 className="text-3xl md:text-4xl font-bold mb-2" style={{ color: COLORS.text }}>¿Qué quieres estudiar hoy?</h1>
@@ -2968,6 +2974,26 @@ export default function StudyMaster() {
                 </div>
               </div>
             ))}
+
+            {/* Preguntados Button */}
+            <div 
+              className="card p-5 cursor-pointer slide-up"
+              style={{ animationDelay: '0.6s', background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}
+              onClick={() => setShowPreguntados(true)}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center shadow-lg bg-white/20">
+                  <span className="text-2xl">🎮</span>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white">Preguntados</h3>
+                  <p className="text-white/80 text-sm">¡Juega y aprende con 8 jugadores!</p>
+                </div>
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -4765,6 +4791,289 @@ ANSWER: B`}</pre>
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* PREGUNTADOS GAME */}
+      {showPreguntados && (
+        <div className="fixed inset-0 z-50 overflow-auto" style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' }}>
+          {/* Close button */}
+          <button 
+            onClick={resetPreguntados}
+            className="absolute top-4 right-4 text-white/70 hover:text-white z-10"
+          >
+            ✕ Salir
+          </button>
+
+          {/* SETUP: Mode Selection */}
+          {preguntadosSetupStep === 'mode' && (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6">
+              <h1 className="text-3xl font-bold text-white mb-2">🎮 Preguntados</h1>
+              <p className="text-white/70 mb-8">Selecciona el modo de juego</p>
+              
+              <div className="w-full max-w-md space-y-4">
+                <button
+                  onClick={() => { setPreguntadosMode('razonamiento'); setPreguntadosSetupStep('players'); }}
+                  className="w-full p-6 rounded-2xl text-left transition hover:scale-[1.02]"
+                  style={{ background: 'linear-gradient(135deg, #8B5CF6, #6366F1)' }}
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-4xl">🧠</span>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Razonamiento</h3>
+                      <p className="text-white/80 text-sm">3 Reinos: Numérico, Verbal, Abstracto</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setPreguntadosMode('conocimiento'); setPreguntadosSetupStep('players'); }}
+                  className="w-full p-6 rounded-2xl text-left transition hover:scale-[1.02]"
+                  style={{ background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' }}
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-4xl">📚</span>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Conocimiento</h3>
+                      <p className="text-white/80 text-sm">6 Reinos: Matemática, Física, Química, etc.</p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => { setPreguntadosMode('aleatorio'); setPreguntadosSetupStep('players'); }}
+                  className="w-full p-6 rounded-2xl text-left transition hover:scale-[1.02]"
+                  style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)' }}
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="text-4xl">🎲</span>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Aleatorio</h3>
+                      <p className="text-white/80 text-sm">3 Reinos: Fácil, Medio, Difícil</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* SETUP: Players Names */}
+          {preguntadosSetupStep === 'players' && (
+            <div className="min-h-screen flex flex-col items-center justify-center p-6">
+              <h2 className="text-2xl font-bold text-white mb-2">👥 Nombres de Jugadores</h2>
+              <p className="text-white/70 mb-6">Ingresa los nombres de los 8 jugadores</p>
+              
+              <div className="w-full max-w-md grid grid-cols-2 gap-3 mb-6">
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                  <input
+                    key={i}
+                    type="text"
+                    value={preguntadosPlayerNames[i]}
+                    onChange={(e) => {
+                      const newNames = [...preguntadosPlayerNames]
+                      newNames[i] = e.target.value
+                      setPreguntadosPlayerNames(newNames)
+                    }}
+                    placeholder={`Jugador ${i + 1}`}
+                    className="p-3 rounded-xl bg-white/10 text-white placeholder-white/50 border border-white/20 focus:border-white/50 outline-none"
+                  />
+                ))}
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setPreguntadosSetupStep('mode')}
+                  className="px-6 py-3 rounded-xl bg-white/20 text-white hover:bg-white/30"
+                >
+                  ← Volver
+                </button>
+                <button
+                  onClick={() => {
+                    const validPlayers = preguntadosPlayerNames.filter(n => n.trim())
+                    if (validPlayers.length < 2) {
+                      alert('Ingresa al menos 2 jugadores')
+                      return
+                    }
+                    startPreguntados(preguntadosMode!, validPlayers)
+                  }}
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:opacity-90"
+                >
+                  ¡Empezar! 🎮
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* GAME: Main Game Screen */}
+          {preguntadosSetupStep === 'game' && (
+            <div className="min-h-screen flex flex-col p-4">
+              {/* Header with current player and progress */}
+              <div className="bg-white/10 backdrop-blur rounded-2xl p-4 mb-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-white/70 text-sm">Turno de:</p>
+                    <h3 className="text-xl font-bold text-white">
+                      🎯 {preguntadosPlayers[preguntadosPlayerOrder[preguntadosCurrentPlayer]]}
+                    </h3>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white/70 text-sm">Modo</p>
+                    <p className="text-white font-bold">
+                      {preguntadosMode === 'razonamiento' ? '🧠 Razonamiento' :
+                       preguntadosMode === 'conocimiento' ? '📚 Conocimiento' : '🎲 Aleatorio'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Crown Progress */}
+                <div className="mt-4 flex justify-center gap-2">
+                  {(preguntadosMode === 'razonamiento' ? REINOS_RAZONAMIENTO :
+                    preguntadosMode === 'conocimiento' ? REINOS_CONOCIMIENTO : REINOS_ALEATORIO
+                  ).map((reino) => {
+                    const progress = preguntadosReinos[`${preguntadosPlayerOrder[preguntadosCurrentPlayer]}-${reino.id}`] || 0
+                    const completed = progress >= PREGUNTADOS_QUESTIONS_TO_WIN
+                    return (
+                      <div key={reino.id} className="text-center">
+                        <div 
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${completed ? 'ring-4 ring-yellow-400' : ''}`}
+                          style={{ background: completed ? reino.color : `${reino.color}40` }}
+                          title={reino.name}
+                        >
+                          {completed ? '👑' : reino.icon}
+                        </div>
+                        <p className="text-[10px] text-white/70 mt-1">{progress}/5</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Winner Screen */}
+              {preguntadosWinner && (
+                <div className="flex-1 flex flex-col items-center justify-center text-center">
+                  <div className="text-6xl mb-4">🏆</div>
+                  <h2 className="text-3xl font-bold text-yellow-400 mb-2">¡GANADOR!</h2>
+                  <p className="text-2xl text-white mb-6">{preguntadosWinner}</p>
+                  <button
+                    onClick={resetPreguntados}
+                    className="px-8 py-4 rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-bold text-lg"
+                  >
+                    🔄 Nuevo Juego
+                  </button>
+                </div>
+              )}
+
+              {/* Spinning Wheel */}
+              {!preguntadosWinner && preguntadosShowWheel && (
+                <div className="flex-1 flex flex-col items-center justify-center">
+                  <div className="relative w-48 h-48 mb-6">
+                    <div 
+                      className="absolute inset-0 rounded-full animate-spin"
+                      style={{ 
+                        background: 'conic-gradient(from 0deg, #8B5CF6, #3B82F6, #10B981, #F59E0B, #EF4444, #EC4899, #8B5CF6)',
+                        animationDuration: preguntadosSpinning ? '0.5s' : '0s'
+                      }}
+                    />
+                    <div className="absolute inset-4 rounded-full bg-gray-900 flex items-center justify-center">
+                      <span className="text-4xl">{preguntadosSpinning ? '🎰' : '🎡'}</span>
+                    </div>
+                  </div>
+                  <p className="text-white text-xl mb-4">
+                    {preguntadosSpinning ? 'Girando...' : '¡Gira la ruleta!'}
+                  </p>
+                  {!preguntadosSpinning && (
+                    <button
+                      onClick={spinWheel}
+                      className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold text-lg"
+                    >
+                      🎡 GIRAR
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Question Screen */}
+              {!preguntadosWinner && !preguntadosShowWheel && preguntadosQuestion && (
+                <div className="flex-1 flex flex-col">
+                  {/* Current Reino & Timer */}
+                  <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const reino = (preguntadosMode === 'razonamiento' ? REINOS_RAZONAMIENTO :
+                                       preguntadosMode === 'conocimiento' ? REINOS_CONOCIMIENTO : REINOS_ALEATORIO
+                                      ).find(r => r.id === preguntadosCurrentReino)
+                        return reino ? (
+                          <div 
+                            className="w-10 h-10 rounded-full flex items-center justify-center"
+                            style={{ background: reino.color }}
+                          >
+                            <span className="text-xl">{reino.icon}</span>
+                          </div>
+                        ) : null
+                      })()}
+                      <span className="text-white font-bold capitalize">{preguntadosCurrentReino}</span>
+                    </div>
+                    <div className={`text-2xl font-bold ${preguntadosTimer <= 5 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                      ⏱️ {preguntadosTimer}s
+                    </div>
+                  </div>
+
+                  {/* Question Card */}
+                  <div className="bg-white rounded-3xl p-6 flex-1 flex flex-col">
+                    <p className="text-lg font-medium text-center mb-6 flex-1">{preguntadosQuestion.question}</p>
+
+                    {/* Options */}
+                    <div className="space-y-3">
+                      {['A', 'B', 'C', 'D'].map((letter, idx) => {
+                        const option = idx === 0 ? preguntadosQuestion.optionA :
+                                       idx === 1 ? preguntadosQuestion.optionB :
+                                       idx === 2 ? preguntadosQuestion.optionC : preguntadosQuestion.optionD
+                        const isSelected = preguntadosSelectedAnswer === idx
+                        const isCorrect = preguntadosQuestion.correctAnswer === idx
+                        const showResult = preguntadosAnswered
+                        
+                        return (
+                          <button
+                            key={letter}
+                            onClick={() => !preguntadosAnswered && answerPreguntados(idx)}
+                            disabled={preguntadosAnswered}
+                            className={`w-full p-4 rounded-xl text-left font-medium transition-all flex items-center gap-3 ${
+                              showResult
+                                ? isCorrect
+                                  ? 'bg-green-500 text-white'
+                                  : isSelected
+                                    ? 'bg-red-500 text-white'
+                                    : 'bg-gray-100 text-gray-500'
+                                : isSelected
+                                  ? 'bg-blue-500 text-white'
+                                  : 'bg-gray-100 hover:bg-blue-100 text-gray-800'
+                            }`}
+                          >
+                            <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                              showResult && isCorrect ? 'bg-white text-green-500' : 'bg-gray-200'
+                            }`}>
+                              {letter}
+                            </span>
+                            {option}
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* Next Button */}
+                    {preguntadosAnswered && !preguntadosWinner && (
+                      <button
+                        onClick={nextTurn}
+                        className="w-full mt-4 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-xl font-bold text-lg"
+                      >
+                        Siguiente →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
