@@ -1317,6 +1317,17 @@ const utplSaludAreas: Record<string, { id: string; name: string; icon: string; t
   }
 }
 
+// Configuración UTA: 60 preguntas en 90 minutos (20 por área)
+const utaConfig = {
+  totalQuestions: 60,
+  timeMinutes: 90,
+  distribution: {
+    numerico: 20,
+    logico: 20,
+    verbal: 20
+  }
+}
+
 // Configuración UTPL: 15 preguntas por dominio en 60 minutos
 const utplConfig = {
   totalQuestions: 45, // 3 áreas base × 15 = 45 (o 6 áreas × 15 = 90 para salud)
@@ -1460,7 +1471,8 @@ const universityConfig: Record<string, { simulacroTime: number; simulacroQuestio
   utmach: { simulacroTime: 90, simulacroQuestions: 50 },  // 1h 30min - 50 preguntas
   unl: { simulacroTime: 120, simulacroQuestions: 100 },   // 2h - 100 preguntas
   utpl: { simulacroTime: 60, simulacroQuestions: 45 },    // 1h - 45 preguntas (base)
-  ucuenca: { simulacroTime: 120, simulacroQuestions: 60 } // 2h - 60 preguntas
+  ucuenca: { simulacroTime: 120, simulacroQuestions: 60 }, // 2h - 60 preguntas
+  uta: { simulacroTime: 90, simulacroQuestions: 60 }      // 1h 30min - 60 preguntas
 }
 
 // Helper to get saved student from localStorage
@@ -2517,6 +2529,23 @@ export default function StudyMaster() {
     startTimer(yachayConfig.timeMinutes)
     // Cargar preguntas según distribución (30 numérico, 20 verbal, 30 abstracto)
     fetchSimulacroQuestions('yachay', yachayConfig.distribution, 'razonamiento')
+  }
+
+  // Para UTA - iniciar simulacro directamente
+  const startUtaSimulacro = () => {
+    setQuizMode('simulacro')
+    setCurrentQuestionIndex(0)
+    setScore(0)
+    setSelectedAnswer(null)
+    setAnswered(false)
+    setTopicResults([])
+    setQuestions([])
+    setCurrentScreen('quiz')
+    
+    // Iniciar temporizador UTA (90 minutos)
+    startTimer(utaConfig.timeMinutes)
+    // Cargar preguntas según distribución (20 numérico, 20 lógico, 20 verbal)
+    fetchSimulacroQuestions('uta', utaConfig.distribution, 'razonamiento')
   }
 
   // Para UNACH - iniciar simulacro directamente
@@ -4216,26 +4245,113 @@ export default function StudyMaster() {
         </div>
       )}
 
-      {/* UTA/UNACH AREAS SCREEN */}
-      {isHydrated && currentScreen === 'areas' && (selectedUniversity === 'uta' || selectedUniversity === 'unach') && !showRegistration && !showAdmin && !showMrQ && !showGame && !showTutorial && (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 pt-24">
+      {/* UTA AREAS SCREEN */}
+      {isHydrated && currentScreen === 'areas' && selectedUniversity === 'uta' && !showRegistration && !showAdmin && !showMrQ && !showGame && !showTutorial && (
+        <div className="min-h-screen flex flex-col items-center p-6 pt-24">
           <button onClick={() => setCurrentScreen('universities')} className="absolute top-24 left-6 flex items-center gap-2" style={{ color: COLORS.textMuted }}>
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             <span>Volver</span>
           </button>
 
-          <div className="text-center mb-10 fade-in">
-            <h2 className="text-3xl font-bold" style={{ color: COLORS.text }}>{universities[selectedCategory]?.find(u => u.id === selectedUniversity)?.name}</h2>
-            <p style={{ color: COLORS.textMuted }}>Elige el tipo de ejercicio</p>
+          <div className="text-center mb-6 fade-in">
+            <h2 className="text-3xl font-bold" style={{ color: COLORS.text }}>UTA</h2>
+            <p style={{ color: COLORS.textMuted }}>Universidad Técnica de Ambato</p>
+            <p style={{ color: COLORS.secondary }} className="text-sm font-medium mt-1">60 preguntas • 90 minutos</p>
+          </div>
+
+          {/* Simulacro Button */}
+          <div className="w-full max-w-md mb-8">
+            <div className="card p-6 cursor-pointer text-center" onClick={startUtaSimulacro} style={{ border: `2px solid ${COLORS.primary}` }}>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ background: COLORS.primary }}>
+                <span className="text-3xl">🎯</span>
+              </div>
+              <h3 className="text-xl font-bold mb-2" style={{ color: COLORS.text }}>Simulacro Completo</h3>
+              <p style={{ color: COLORS.textMuted }} className="text-sm">60 preguntas (20 Numérico, 20 Lógico, 20 Verbal)</p>
+              <p style={{ color: COLORS.secondary }} className="text-xs mt-1 font-medium">Tiempo: 1h 30min</p>
+            </div>
+          </div>
+
+          {/* Áreas de práctica */}
+          <div className="text-center mb-4">
+            <h3 className="text-lg font-bold" style={{ color: COLORS.text }}>Practicar por Área</h3>
+            <p style={{ color: COLORS.textMuted }} className="text-sm">Selecciona un área y tema</p>
           </div>
 
           <div className="w-full max-w-lg grid grid-cols-3 gap-4">
-            {Object.values(utaTypes).map(type => (
-              <div key={type.id} className="card p-6 cursor-pointer text-center" onClick={() => { setSelectedArea(type.id); setCurrentScreen('topics'); }}>
+            {Object.values(utaTypes).map((type, index) => (
+              <div 
+                key={type.id} 
+                className="card p-6 cursor-pointer text-center slide-up"
+                style={{ animationDelay: `${0.1 + index * 0.05}s` }}
+                onClick={() => { setSelectedArea(type.id); setCurrentScreen('topics'); }}
+              >
                 <div className="w-14 h-14 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ background: type.id === 'numerico' ? COLORS.primary : type.id === 'logico' ? '#8B5CF6' : '#EC4899' }}>
                   <span className="text-2xl">{type.icon}</span>
                 </div>
                 <h3 className="font-bold" style={{ color: COLORS.text }}>{type.name}</h3>
+                <p style={{ color: COLORS.textMuted }} className="text-xs mt-1">{type.topics.length} temas</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* UNACH AREAS SCREEN */}
+      {isHydrated && currentScreen === 'areas' && selectedUniversity === 'unach' && !showRegistration && !showAdmin && !showMrQ && !showGame && !showTutorial && (
+        <div className="min-h-screen flex flex-col items-center p-6 pt-24">
+          <button onClick={() => setCurrentScreen('universities')} className="absolute top-24 left-6 flex items-center gap-2" style={{ color: COLORS.textMuted }}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <span>Volver</span>
+          </button>
+
+          <div className="text-center mb-6 fade-in">
+            <h2 className="text-3xl font-bold" style={{ color: COLORS.text }}>UNACH</h2>
+            <p style={{ color: COLORS.textMuted }}>Universidad Nacional de Chimborazo</p>
+            <p style={{ color: COLORS.secondary }} className="text-sm font-medium mt-1">80 preguntas • 90 minutos</p>
+          </div>
+
+          {/* Simulacro Button */}
+          <div className="w-full max-w-md mb-8">
+            <div className="card p-6 cursor-pointer text-center" onClick={startUnachSimulacro} style={{ border: `2px solid #8B5CF6` }}>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-xl flex items-center justify-center" style={{ background: '#8B5CF6' }}>
+                <span className="text-3xl">🎯</span>
+              </div>
+              <h3 className="text-xl font-bold mb-2" style={{ color: COLORS.text }}>Simulacro Completo</h3>
+              <p style={{ color: COLORS.textMuted }} className="text-sm">80 preguntas (30 numérico, 20 verbal, 30 abstracto)</p>
+              <p style={{ color: COLORS.secondary }} className="text-xs mt-1 font-medium">Tiempo: 1h 30min</p>
+            </div>
+          </div>
+
+          {/* Áreas de práctica */}
+          <div className="text-center mb-4">
+            <h3 className="text-lg font-bold" style={{ color: COLORS.text }}>Practicar por Área</h3>
+            <p style={{ color: COLORS.textMuted }} className="text-sm">Selecciona un área y tema</p>
+          </div>
+
+          <div className="w-full max-w-md grid grid-cols-3 gap-3">
+            {Object.values(unachAreas).map((area, index) => (
+              <div 
+                key={area.id} 
+                className="card p-4 cursor-pointer slide-up" 
+                style={{ animationDelay: `${0.1 + index * 0.05}s` }} 
+                onClick={() => {
+                  setSelectedArea(area.id);
+                  if (area.topics.length > 0) {
+                    setCurrentScreen('topics');
+                  } else {
+                    startAreaPractice(area.id);
+                  }
+                }}
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-2" style={{ background: '#EDE9FE' }}>
+                    <span className="text-2xl">{area.icon}</span>
+                  </div>
+                  <h3 className="font-bold text-sm" style={{ color: COLORS.text }}>{area.name}</h3>
+                  <p style={{ color: COLORS.textMuted }} className="text-xs mt-1">
+                    {area.topics.length > 0 ? `${area.topics.length} temas` : 'Práctica general'}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
