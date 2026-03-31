@@ -244,9 +244,10 @@ Reglas importantes:
       const response = completion.choices[0]?.message?.content || 'Lo siento, no pude procesar tu mensaje. ¿Podrías intentarlo de nuevo?'
 
       return NextResponse.json({ response })
-    } catch (sdkError) {
+    } catch (sdkError: unknown) {
       // Si el SDK falla, usar respuestas de fallback
-      console.log('SDK no disponible, usando modo fallback:', sdkError)
+      const errorMessage = sdkError instanceof Error ? sdkError.message : 'Unknown error'
+      console.log('SDK no disponible, usando modo fallback:', errorMessage)
 
       const lastMessage = messages[messages.length - 1]?.content || ''
       const fallbackResponse = getFallbackResponse(lastMessage)
